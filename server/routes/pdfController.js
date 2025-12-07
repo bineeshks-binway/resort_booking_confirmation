@@ -6,90 +6,116 @@ const path = require('path');
 const QRCode = require('qrcode');
 
 router.post('/generate-pdf', async (req, res) => {
-    try {
-        const {
-            guestName,
-            phoneNumber,
-            checkIn,
-            checkOut,
-            guests,
-            roomType,
-            price,
-            paymentStatus,
-            extraServices,
-            specialNotes,
-            bookingId
-        } = req.body;
+  try {
+    const {
+      guestName,
+      phoneNumber,
+      checkIn,
+      checkOut,
+      guests,
+      roomType,
+      price,
+      paymentStatus,
+      extraServices,
+      specialNotes,
+      bookingId
+    } = req.body;
 
-        // Generate QR Code with location
-        const locationUrl = "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
-        const qrCodeData = await QRCode.toDataURL(locationUrl);
+    const locationUrl =
+      "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
+    const qrCodeData = await QRCode.toDataURL(locationUrl);
 
-        // Get Room Image Path
-        const roomImageMap = {
-            'Deluxe': 'deluxe.jpg',
-            'Premium': 'premium.jpg',
-            'Suite': 'suite.jpg'
-        };
-        const roomImage = roomImageMap[roomType] || 'deluxe.jpg';
+    const roomImageMap = {
+      Deluxe: 'deluxe.jpg',
+      Premium: 'premium.jpg',
+      Suite: 'suite.jpg'
+    };
 
-        // Host URL for assets
-        const host = req.get('host');
-        const protocol = req.protocol;
-        const baseUrl = `${protocol}://${host}`;
+    const roomImage = roomImageMap[roomType] || 'deluxe.jpg';
 
-        const data = {
-            guestName,
-            phoneNumber,
-            checkIn,
-            checkOut,
-            guests,
-            roomType,
-            price,
-            paymentStatus,
-            extraServices: extraServices || [],
-            specialNotes,
-            bookingId: bookingId || `RES-${Date.now()}`,
-            qrCodeData,
-            baseUrl,
-            roomImage
-        };
+    const baseUrl = `http://${req.get('host')}`;
 
-        // Render EJS
-        const templatePath = path.join(__dirname, '../templates/booking-confirmation.ejs');
-        const html = await ejs.renderFile(templatePath, data);
+    const data = {
+      guestName,
+      phoneNumber,
+      checkIn,
+      checkOut,
+      guests,
+      roomType,
+      price,
+      paymentStatus,
+      extraServices: extraServices || [],
+      specialNotes,
+      bookingId: bookingId || `RES-${Date.now()}`,
+      qrCodeData,
+      baseUrl,
+      roomImage
+    };
 
-        // Launch Puppeteer
-        const browser = await puppeteer.launch({ headless: "new" });
-        const page = await browser.newPage();
+    const templatePath = path.join(
+      __dirname,
+      '../templates/booking-confirmation.ejs'
+    );
 
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+    // Read images and convert to base64
+    const fs = require('fs');
 
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: {
-                top: '0px',
-                bottom: '0px',
-                left: '0px',
-                right: '0px'
-            }
-        });
+    // Function to encode file to base64
+    const base64_encode = (file) => {
+      try {
+        const bitmap = fs.readFileSync(file);
+        const ext = path.extname(file).substring(1);
+        return `data:image/${ext === 'svg' ? 'svg+xml' : ext};base64,${new Buffer.from(bitmap).toString('base64')}`;
+      } catch (e) {
+        console.error('Error reading file:', file, e);
+        return '';
+      }
+    };
 
-        await browser.close();
+    const logoPath = path.join(__dirname, '../../client/public/logo.jpg');
+    const roomPath = path.join(__dirname, '../../client/public/room.webp');
 
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Length': pdfBuffer.length,
-            'Content-Disposition': `attachment; filename="booking_${guestName}.pdf"`
-        });
+    const logoData = base64_encode(logoPath);
+    const roomImageData = base64_encode(roomPath);
 
-        res.send(pdfBuffer);
+    const html = await ejs.renderFile(templatePath, {
+      ...data,
+      logoData,
+      roomImageData
+    });
 
-    } catch (error) {
-        console.error('PDF Generation Error:', error);
-        res.status(500).send('Error generating PDF');
-    }
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '0px',
+        bottom: '0px',
+        left: '0px',
+        right: '0px'
+      }
+    });
+
+    await browser.close();
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="booking_${guestName}.pdf"`
+    });
+
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('PDF Generation Error:', error);
+    res.status(500).json({ message: 'PDF generation failed' });
+  }
 });
 
 module.exports = router;

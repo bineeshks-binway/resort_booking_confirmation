@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Wayanad Green Valley Resort",
   description: "Luxury Resort Booking",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

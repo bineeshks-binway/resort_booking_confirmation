@@ -26,7 +26,8 @@ export default function PreviewPage() {
         if (!data) return;
         setGenerating(true);
         try {
-            const response = await axios.post('http://localhost:5000/api/generate-pdf', data, {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+            const response = await axios.post(`${apiUrl}/api/generate-pdf`, data, {
                 responseType: 'blob'
             });
 

@@ -1,21 +1,29 @@
 {
-    "name": "wayanad-resort-server",
-    "version": "1.0.0",
-    "description": "Backend for PDF Generation",
-    "main": "index.js",
-    "scripts": {
-        "start": "node index.js",
-        "dev": "nodemon index.js"
-    },
-    "dependencies": {
-        "cors": "^2.8.5",
-        "dotenv": "^16.3.1",
-        "ejs": "^3.1.9",
-        "express": "^4.18.2",
-        "puppeteer": "^21.5.2",
-        "qrcode": "^1.5.3"
-    },
-    "devDependencies": {
-        "nodemon": "^3.0.1"
-    }
+  "name": "wayanad-resort-server",
+  "version": "1.0.0",
+  "description": "Backend for PDF Generation",
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bineeshks-binway/resort_booking_confirmation.git"
+  },
+
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "puppeteer": "^21.5.2",
+    "qrcode": "^1.5.3"
+  },
+
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
 }
