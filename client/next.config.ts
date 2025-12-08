@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
 
   // ✅ IMPORTANT: do NOT use output: "export"
   // This app uses SSR / API calls
+
+  // Use Turbopack (default in Next.js 16) for dev, silencing warning about webpack config
+  // (PWA is disabled in dev anyway)
+  turbopack: {},
 };
 
 export default withPWA({
