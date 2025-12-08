@@ -57,26 +57,12 @@ router.post('/generate-pdf', async (req, res) => {
       '../templates/booking-confirmation.ejs'
     );
 
-    // Read images and convert to base64
-    const fs = require('fs');
+    // Use absolute URLs for images (hosted on Vercel)
+    // TODO: Make sure to set FRONTEND_URL in your Render environment variables to your actual Vercel app URL
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://resort-booking-confirmation.vercel.app';
 
-    // Function to encode file to base64
-    const base64_encode = (file) => {
-      try {
-        const bitmap = fs.readFileSync(file);
-        const ext = path.extname(file).substring(1);
-        return `data:image/${ext === 'svg' ? 'svg+xml' : ext};base64,${new Buffer.from(bitmap).toString('base64')}`;
-      } catch (e) {
-        console.error('Error reading file:', file, e);
-        return '';
-      }
-    };
-
-    const logoPath = path.join(__dirname, '../../client/public/logo.jpg');
-    const roomPath = path.join(__dirname, '../../client/public/room.webp');
-
-    const logoData = base64_encode(logoPath);
-    const roomImageData = base64_encode(roomPath);
+    const logoData = `${FRONTEND_URL}/logo.jpg`;
+    const roomImageData = `${FRONTEND_URL}/room.webp`;
 
     const html = await ejs.renderFile(templatePath, {
       ...data,
