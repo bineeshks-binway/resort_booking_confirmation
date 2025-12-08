@@ -156,12 +156,7 @@ export default function PreviewPage() {
                         </div>
                     </Card>
 
-                    <div className="mt-8">
-                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Debug Info</h4>
-                        <pre className="text-xs bg-gray-200 p-2 rounded overflow-x-auto">
-                            {JSON.stringify(data, null, 2)}
-                        </pre>
-                    </div>
+
                 </div>
             </div>
         </div>

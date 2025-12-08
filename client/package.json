@@ -7,7 +7,7 @@
     "url": "https://github.com/bineeshks-binway/resort_booking_confirmation_client.git"
   },
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
