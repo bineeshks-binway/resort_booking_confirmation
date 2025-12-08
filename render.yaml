@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: resort-booking-server
+    env: docker
+    region: singapore
+    plan: free
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    envVars:
+      - key: PORT
+        value: 5000
