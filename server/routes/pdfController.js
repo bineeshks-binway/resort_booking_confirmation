@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const puppeteer = require('puppeteer');
-const ejs = require('ejs');
-const path = require('path');
-const QRCode = require('qrcode');
+const puppeteer = require("puppeteer");
+const ejs = require("ejs");
+const path = require("path");
+const QRCode = require("qrcode");
 
-router.post('/generate-pdf', async (req, res) => {
+router.post("/generate-pdf", async (req, res) => {
   try {
     const {
       guestName,
@@ -21,20 +21,29 @@ router.post('/generate-pdf', async (req, res) => {
       bookingId
     } = req.body;
 
+    // ✅ QR Code (Google Maps)
     const locationUrl =
       "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
     const qrCodeData = await QRCode.toDataURL(locationUrl);
 
+    // ✅ LOGO (absolute URL - production safe)
+    const logoData =
+      "https://resort-booking-confirmation.vercel.app/images/logo.png";
+
+    // ✅ Room images mapping (absolute URLs)
     const roomImageMap = {
-      Deluxe: 'deluxe.jpg',
-      Premium: 'premium.jpg',
-      Suite: 'suite.jpg'
+      Deluxe:
+        "https://resort-booking-confirmation.vercel.app/images/deluxe-room.jpg",
+      Premium:
+        "https://resort-booking-confirmation.vercel.app/images/premium-room.jpg",
+      Suite:
+        "https://resort-booking-confirmation.vercel.app/images/suite-room.jpg"
     };
 
-    const roomImage = roomImageMap[roomType] || 'deluxe.jpg';
+    const roomImageData =
+      roomImageMap[roomType] || roomImageMap.Deluxe;
 
-    const baseUrl = `http://${req.get('host')}`;
-
+    // ✅ Data passed to EJS
     const data = {
       guestName,
       phoneNumber,
@@ -48,60 +57,61 @@ router.post('/generate-pdf', async (req, res) => {
       specialNotes,
       bookingId: bookingId || `RES-${Date.now()}`,
       qrCodeData,
-      baseUrl,
-      roomImage
-    };
-
-    const templatePath = path.join(
-      __dirname,
-      '../templates/booking-confirmation.ejs'
-    );
-
-    // Use absolute URLs for images (hosted on Vercel)
-    // TODO: Make sure to set FRONTEND_URL in your Render environment variables to your actual Vercel app URL
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://resort-booking-confirmation.vercel.app';
-
-    const logoData = `${FRONTEND_URL}/logo.jpg`;
-    const roomImageData = `${FRONTEND_URL}/room.webp`;
-
-    const html = await ejs.renderFile(templatePath, {
-      ...data,
       logoData,
       roomImageData
-    });
+    };
 
+    // ✅ Template path
+    const templatePath = path.join(
+      __dirname,
+      "../templates/booking-confirmation.ejs"
+    );
+
+    // ✅ Render EJS to HTML
+    const html = await ejs.renderFile(templatePath, data);
+
+    // ✅ Launch Puppeteer (Render safe)
     const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
 
+    // ✅ IMPORTANT: wait until images fully load
+    await page.setContent(html, {
+      waitUntil: "networkidle0"
+    });
+
+    await page.waitForSelector("img");
+
+    // ✅ Generate PDF
     const pdfBuffer = await page.pdf({
-      format: 'A4',
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '0px',
-        bottom: '0px',
-        left: '0px',
-        right: '0px'
+        top: "0px",
+        right: "0px",
+        bottom: "0px",
+        left: "0px"
       }
     });
 
     await browser.close();
 
+    // ✅ Send PDF
     res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="booking_${guestName}.pdf"`
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="booking_${guestName}.pdf"`
     });
 
     res.send(pdfBuffer);
 
   } catch (error) {
-    console.error('PDF Generation Error:', error);
-    res.status(500).json({ message: 'PDF generation failed' });
+    console.error("PDF Generation Error:", error);
+    res.status(500).json({ message: "PDF generation failed" });
   }
 });
 
 module.exports = router;
+
