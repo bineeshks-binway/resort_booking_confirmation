@@ -5,6 +5,22 @@ const ejs = require("ejs");
 const path = require("path");
 const QRCode = require("qrcode");
 
+const fs = require("fs");
+
+const getImageAsBase64 = (filePath) => {
+  try {
+    const fullPath = path.join(__dirname, "../public/images", filePath);
+    if (fs.existsSync(fullPath)) {
+      const bitmap = fs.readFileSync(fullPath);
+      const ext = path.extname(fullPath).substring(1);
+      return `data:image/${ext};base64,${bitmap.toString("base64")}`;
+    }
+  } catch (err) {
+    console.error("Error loading image:", filePath, err);
+  }
+  return "";
+};
+
 router.post("/generate-pdf", async (req, res) => {
   try {
     const {
@@ -26,22 +42,11 @@ router.post("/generate-pdf", async (req, res) => {
       "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
     const qrCodeData = await QRCode.toDataURL(locationUrl);
 
-    // ✅ LOGO (absolute URL - production safe)
-    const logoData =
-      "https://resort-booking-confirmation.vercel.app/images/logo.png";
+    // ✅ LOGO (Base64)
+    const logoData = getImageAsBase64("logo.jpg");
 
-    // ✅ Room images mapping (absolute URLs)
-    const roomImageMap = {
-      Deluxe:
-        "https://resort-booking-confirmation.vercel.app/images/deluxe-room.jpg",
-      Premium:
-        "https://resort-booking-confirmation.vercel.app/images/premium-room.jpg",
-      Suite:
-        "https://resort-booking-confirmation.vercel.app/images/suite-room.jpg"
-    };
-
-    const roomImageData =
-      roomImageMap[roomType] || roomImageMap.Deluxe;
+    // ✅ Room images (Base64 - using room.webp for all)
+    const roomImageData = getImageAsBase64("room.webp");
 
     // ✅ Data passed to EJS
     const data = {
