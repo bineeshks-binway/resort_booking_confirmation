@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Booking Confirmation</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600&display=swap"
+    rel="stylesheet">
 
   <style>
     body {
@@ -22,6 +25,8 @@
       color: #D4AF37;
       padding: 40px;
       text-align: center;
+      border-bottom-left-radius: 30px;
+      border-bottom-right-radius: 30px;
     }
 
     .logo {
@@ -203,7 +208,9 @@
     <div class="room-section">
       <img src="<%= roomImageData %>" class="room-image" alt="Room image">
       <div class="room-details">
-        <h2 class="room-title"><%= roomType %> Room</h2>
+        <h2 class="room-title">
+          <%= roomType %> Room
+        </h2>
         <p style="font-size:14px;color:#666;">
           Enjoy your stay in our premium <%= roomType.toLowerCase() %> suite with nature views.
         </p>
@@ -214,53 +221,68 @@
     <div class="grid">
       <div class="info-box">
         <div class="info-label">Guest</div>
-        <div class="info-value"><%= guestName %></div>
-        <div style="font-size:14px;color:#555;margin-top:4px;"><%= phoneNumber %></div>
-        <div style="font-size:14px;color:#555;"><%= guests %> Guests</div>
+        <div class="info-value">
+          <%= guestName %>
+        </div>
+        <div style="font-size:14px;color:#555;margin-top:4px;">
+          <%= phoneNumber %>
+        </div>
+        <div style="font-size:14px;color:#555;">
+          <%= guests %> Guests
+        </div>
       </div>
 
       <div class="info-box">
         <div class="info-label">Stay</div>
         <div style="font-size:14px;color:#666;">Check-in</div>
-        <div class="info-value"><%= new Date(checkIn).toLocaleDateString() %></div>
+        <div class="info-value">
+          <%= new Date(checkIn).toLocaleDateString() %>
+        </div>
         <div style="font-size:14px;color:#666;margin-top:6px;">Check-out</div>
-        <div class="info-value"><%= new Date(checkOut).toLocaleDateString() %></div>
+        <div class="info-value">
+          <%= new Date(checkOut).toLocaleDateString() %>
+        </div>
       </div>
     </div>
 
     <% if (extraServices && extraServices.length) { %>
       <div class="services">
         <div class="info-label">Included Services</div>
-        <% extraServices.forEach(service => { %>
-          <span class="service-item"><%= service %></span>
-        <% }) %>
+        <% extraServices.forEach(service=> { %>
+          <span class="service-item">
+            <%= service %>
+          </span>
+          <% }) %>
       </div>
-    <% } %>
+      <% } %>
 
-    <% if (specialNotes) { %>
-      <p style="margin-top:20px;font-size:14px;color:#555;">
-        <strong>Note:</strong> <%= specialNotes %>
-      </p>
-    <% } %>
+        <% if (specialNotes) { %>
+          <p style="margin-top:20px;font-size:14px;color:#555;">
+            <strong>Note:</strong>
+            <%= specialNotes %>
+          </p>
+          <% } %>
 
-    <!-- PRICE -->
-    <div class="price-summary">
-      <div>
-        <div>Total Amount</div>
-        <span class="status-badge <%= paymentStatus === 'Paid' ? 'paid' : 'pending' %>">
-          <%= paymentStatus %>
-        </span>
-      </div>
-      <div class="total-price">₹ <%= parseInt(price).toLocaleString('en-IN') %></div>
-    </div>
+            <!-- PRICE -->
+            <div class="price-summary">
+              <div>
+                <div>Total Amount</div>
+                <span class="status-badge <%= paymentStatus === 'Paid' ? 'paid' : 'pending' %>">
+                  <%= paymentStatus %>
+                </span>
+              </div>
+              <div class="total-price">₹ <%= parseInt(price).toLocaleString('en-IN') %>
+              </div>
+            </div>
 
-    <!-- FOOTER -->
-    <div class="footer">
-      <img src="<%= qrCodeData %>" class="qr">
-      <div class="footer-text">Scan to find us on Google Maps</div>
-      <div class="footer-text">www.wayanadgreenvalley.com | +91 98765 43210</div>
-    </div>
+            <!-- FOOTER -->
+            <div class="footer">
+              <img src="<%= qrCodeData %>" class="qr">
+              <div class="footer-text">Scan to find us on Google Maps</div>
+              <div class="footer-text">www.wayanadgreenvalley.com | +91 98765 43210</div>
+            </div>
 
   </div>
 </body>
+
 </html>

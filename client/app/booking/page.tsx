@@ -12,7 +12,7 @@ export default function BookingPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
         guestName: '',
-        phoneNumber: '',
+        phoneNumber: '+91 ',
         checkIn: '',
         checkOut: '',
         guests: 2,
@@ -38,7 +38,14 @@ export default function BookingPage() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+
+        if (name === 'guestName') {
+            // Capitalize first letter of each word
+            const capitalizedValue = value.replace(/\b\w/g, char => char.toUpperCase());
+            setFormData(prev => ({ ...prev, [name]: capitalizedValue }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleCheckboxChange = (service: string) => {
@@ -169,8 +176,8 @@ export default function BookingPage() {
                                     type="button"
                                     onClick={() => handleCheckboxChange(service)}
                                     className={`px-3 py-1.5 rounded-full text-sm border transition-all ${formData.extraServices.includes(service)
-                                            ? 'bg-green text-white border-green'
-                                            : 'bg-white text-gray-600 border-gray-200 hover:border-green'
+                                        ? 'bg-green text-white border-green'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-green'
                                         }`}
                                 >
                                     {service}
