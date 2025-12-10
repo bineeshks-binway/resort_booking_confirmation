@@ -18,6 +18,7 @@
       background: #ffffff;
       color: #333;
       -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     .header {
@@ -132,17 +133,32 @@
       margin-right: 6px;
       border-radius: 18px;
       font-size: 12px;
+      margin-bottom: 5px;
     }
 
     .price-summary {
       margin-top: 40px;
       background: #1A4D2E;
       color: #ffffff;
-      padding: 25px;
+      padding: 25px 30px;
       border-radius: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .price-left {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: flex-start;
+    }
+
+    .price-label {
+      font-size: 14px;
+      text-transform: uppercase;
+      opacity: 0.9;
+      letter-spacing: 0.5px;
     }
 
     .total-price {
@@ -265,8 +281,8 @@
 
             <!-- PRICE -->
             <div class="price-summary">
-              <div>
-                <div>Total Amount</div>
+              <div class="price-left">
+                <div class="price-label">Total Amount</div>
                 <span class="status-badge <%= paymentStatus === 'Paid' ? 'paid' : 'pending' %>">
                   <%= paymentStatus %>
                 </span>
