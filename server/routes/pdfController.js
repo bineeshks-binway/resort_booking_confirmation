@@ -4,8 +4,32 @@ const puppeteer = require("puppeteer");
 const ejs = require("ejs");
 const path = require("path");
 const QRCode = require("qrcode");
-
 const fs = require("fs");
+
+// ✅ OPTIMIZATION: Reuse Browser Instance
+let browserInstance = null;
+
+const getBrowser = async () => {
+  if (!browserInstance) {
+    console.log("🚀 Launching new Puppeteer browser instance...");
+    browserInstance = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", // Optimize memory
+        "--disable-gpu"
+      ]
+    });
+
+    // Handle crashes/disconnects
+    browserInstance.on("disconnected", () => {
+      console.log("⚠️ Browser disconnected! Resetting instance...");
+      browserInstance = null;
+    });
+  }
+  return browserInstance;
+};
 
 const getImageAsBase64 = (filePath) => {
   try {
@@ -22,6 +46,7 @@ const getImageAsBase64 = (filePath) => {
 };
 
 router.post("/generate-pdf", async (req, res) => {
+  let page = null;
   try {
     const {
       guestName,
@@ -37,15 +62,14 @@ router.post("/generate-pdf", async (req, res) => {
       bookingId
     } = req.body;
 
-    // ✅ QR Code (Google Maps)
-    const locationUrl =
-      "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
+    console.log(`📄 Generating PDF for: ${guestName} (${bookingId})`);
+
+    // ✅ QR Code
+    const locationUrl = "https://www.google.com/maps/search/?api=1&query=Wayanad+Green+Valley+Resort";
     const qrCodeData = await QRCode.toDataURL(locationUrl);
 
-    // ✅ LOGO (Base64)
+    // ✅ LOGO & IMAGES
     const logoData = getImageAsBase64("logo.jpg");
-
-    // ✅ Room images (Base64 - using room.webp for all)
     const roomImageData = getImageAsBase64("room.webp");
 
     // ✅ Data passed to EJS
@@ -67,42 +91,27 @@ router.post("/generate-pdf", async (req, res) => {
     };
 
     // ✅ Template path
-    const templatePath = path.join(
-      __dirname,
-      "../templates/booking-confirmation.ejs"
-    );
+    const templatePath = path.join(__dirname, "../templates/booking-confirmation.ejs");
 
     // ✅ Render EJS to HTML
     const html = await ejs.renderFile(templatePath, data);
 
-    // ✅ Launch Puppeteer (Render safe)
-    const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
+    // ✅ Get Browser & New Page
+    const browser = await getBrowser();
+    page = await browser.newPage();
 
-    const page = await browser.newPage();
-
-    // ✅ IMPORTANT: wait until images fully load
-    await page.setContent(html, {
-      waitUntil: "networkidle0"
-    });
-
+    // ✅ Set Content & Wait
+    await page.setContent(html, { waitUntil: "networkidle0" });
     await page.waitForSelector("img");
 
     // ✅ Generate PDF
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: {
-        top: "0px",
-        right: "0px",
-        bottom: "0px",
-        left: "0px"
-      }
+      margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }
     });
 
-    await browser.close();
+    console.log("✅ PDF Generated successfully");
 
     // ✅ Send PDF
     res.set({
@@ -113,8 +122,18 @@ router.post("/generate-pdf", async (req, res) => {
     res.send(pdfBuffer);
 
   } catch (error) {
-    console.error("PDF Generation Error:", error);
+    console.error("❌ PDF Generation Error:", error);
+    // If browser crashed, reset it
+    if (error.message.includes('Protocol error') || error.message.includes('Target closed')) {
+      if (browserInstance) {
+        await browserInstance.close().catch(() => { });
+        browserInstance = null;
+      }
+    }
     res.status(500).json({ message: "PDF generation failed" });
+  } finally {
+    // ✅ Close only the page, NOT the browser
+    if (page) await page.close().catch(err => console.error("Error closing page:", err));
   }
 });
 

@@ -136,8 +136,15 @@
       margin-bottom: 5px;
     }
 
+    .page-spacer {
+      page-break-before: always;
+      height: 60px;
+      display: block;
+    }
+
     .price-summary {
-      margin-top: 40px;
+      border-top: 1px solid transparent;
+      /* Prevent margin collapse */
       background: #1A4D2E;
       color: #ffffff;
       padding: 25px 30px;
@@ -280,6 +287,7 @@
           <% } %>
 
             <!-- PRICE -->
+            <div class="page-spacer"></div>
             <div class="price-summary">
               <div class="price-left">
                 <div class="price-label">Total Amount</div>
