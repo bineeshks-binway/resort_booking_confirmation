@@ -1,0 +1,14 @@
+{
+    "guestName": "John Doe",
+    "phoneNumber": "9876543210",
+    "checkIn": "2023-12-25",
+    "checkOut": "2023-12-27",
+    "guests": 2,
+    "roomType": "Nalukettu",
+    "mealPlan": "Breakfast | Dinner",
+    "price": 15000,
+    "advanceAmount": 5000,
+    "pendingAmount": 10000,
+    "noOfRooms": 1,
+    "noOfNights": 2
+}

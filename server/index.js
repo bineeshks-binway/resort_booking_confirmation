@@ -1,4 +1,5 @@
-const express = require('express');
+const express = require('express'); // restart trigger
+require('dotenv').config();
 const cors = require('cors');
 const path = require('path');
 const pdfRoutes = require('./routes/pdfController');
@@ -10,6 +11,10 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Connect to Database
+const connectDB = require('./config/db');
+connectDB();
 
 // Static files (for images served in PDF)
 app.use('/public', express.static(path.join(__dirname, 'public')));
