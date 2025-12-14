@@ -6,7 +6,7 @@ import { Select } from './Select';
 import { Button } from './Button';
 import { Card } from './Card';
 import { ArrowRight, Download, Calculator, History } from 'lucide-react'; // Added History icon
-import axios from 'axios';
+import api from '@/lib/api'; // Import centralized API
 import { useRouter } from 'next/navigation'; // Added useRouter
 
 const ROOM_PRICES: Record<string, number> = {
@@ -113,8 +113,8 @@ export const BookingForm = () => {
         setLoading(true);
 
         try {
-            // Use relative path to leverage Next.js proxy (avoids CORS/Network issues)
-            const response = await axios.post('/api/generate-pdf', formData, {
+            // Updated to use centralized API client
+            const response = await api.post('/api/generate-pdf', formData, {
                 responseType: 'blob'
             });
 
@@ -128,7 +128,7 @@ export const BookingForm = () => {
             link.remove();
 
             // 2. Redirect to Booking Details Page
-            // Read ID from header
+            // Read ID from header (ensure lowercase for axios/CORS compatibility)
             const bookingId = response.headers['x-booking-id'];
             if (bookingId) {
                 // Short delay to allow download to start
@@ -139,7 +139,7 @@ export const BookingForm = () => {
 
         } catch (error) {
             console.error("PDF Generation failed", error);
-            alert("Failed to generate PDF. Please ensure all fields are correct.");
+            alert("Failed to generate PDF. Please ensure backend is running.");
         } finally {
             setLoading(false);
         }

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import api from '@/lib/api';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { ArrowLeft, Download, Share2, Printer, CheckCircle } from 'lucide-react';
@@ -26,8 +26,8 @@ export default function PreviewPage() {
         if (!data) return;
         setGenerating(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-            const response = await axios.post(`${apiUrl}/api/generate-pdf`, data, {
+            // Updated to use centralized API client
+            const response = await api.post(`/api/generate-pdf`, data, {
                 responseType: 'blob'
             });
 

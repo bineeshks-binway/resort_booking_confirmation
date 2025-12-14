@@ -20,12 +20,7 @@ const nextConfig: NextConfig = {
   // (PWA is disabled in dev anyway)
   turbopack: {},
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:5000/api/:path*',
-      },
-    ];
+    return [];
   },
 };
 

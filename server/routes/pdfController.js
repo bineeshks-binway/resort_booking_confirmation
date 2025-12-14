@@ -17,8 +17,11 @@ const getBrowser = async () => {
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage", // Optimize memory
-      "--disable-gpu"
-    ]
+      "--disable-gpu",
+      "--single-process", // Required for some Render instances
+      "--no-zygote"       // Required for some Render instances
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, // Use Render's chrome if available
   });
 };
 
