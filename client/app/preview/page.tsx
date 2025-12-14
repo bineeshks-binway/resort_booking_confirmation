@@ -40,9 +40,10 @@ export default function PreviewPage() {
             link.click();
 
             setDownloadUrl(url); // Keep for sharing?
-        } catch (error) {
+        } catch (error: any) {
             console.error("PDF Fail", error);
-            alert("Failed to generate PDF. Is the backend running?");
+            const msg = error.response?.data?.message || error.message;
+            alert(`Failed to generate PDF: ${msg}`);
         } finally {
             setGenerating(false);
         }

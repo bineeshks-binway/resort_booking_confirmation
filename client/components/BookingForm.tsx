@@ -137,9 +137,11 @@ export const BookingForm = () => {
                 }, 1000);
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("PDF Generation failed", error);
-            alert("Failed to generate PDF. Please ensure backend is running.");
+            const status = error.response?.status;
+            const message = error.response?.data?.message || error.message;
+            alert(`Failed to generate PDF. Error: ${status || 'Network/Unknown'} - ${message}`);
         } finally {
             setLoading(false);
         }
