@@ -139,9 +139,25 @@ export const BookingForm = () => {
 
         } catch (error: any) {
             console.error("PDF Generation failed", error);
+            let message = error.message;
             const status = error.response?.status;
-            const message = error.response?.data?.message || error.message;
-            alert(`Failed to generate PDF. Error: ${status || 'Network/Unknown'} - ${message}`);
+
+            if (error.response?.data instanceof Blob) {
+                // Parse Blob error response
+                try {
+                    const text = await error.response.data.text();
+                    const json = JSON.parse(text);
+                    message = json.message || json.error || message;
+                    if (json.error) message += ` (${json.error})`;
+                } catch (e) {
+                    // Fallback if not JSON
+                    message = "Server Error (Check logs)";
+                }
+            } else if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+
+            alert(`Failed to generate PDF. Error: ${status || 'Network'} - ${message}`);
         } finally {
             setLoading(false);
         }

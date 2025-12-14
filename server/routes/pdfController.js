@@ -10,33 +10,43 @@ const Counter = require("../models/Counter");
 
 // ✅ OPTIMIZATION: Reuse Browser Instance
 const getBrowser = async () => {
-  console.log("🚀 Launching new Puppeteer browser instance...");
-  return await puppeteer.launch({
-    headless: "new",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage", // Optimize memory
-      "--disable-gpu",
-      "--single-process", // Required for some Render instances
-      "--no-zygote"       // Required for some Render instances
-    ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, // Use Render's chrome if available
-  });
+  console.log("🚀 Launching Puppeteer...");
+  try {
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process",
+        "--no-zygote"
+      ],
+      // executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, // Commented out to rely on auto-downloaded chrome
+    });
+    console.log("✅ Puppeteer Launched!");
+    return browser;
+  } catch (e) {
+    console.error("❌ Puppeteer Launch Failed:", e);
+    throw e;
+  }
 };
 
 const getImageAsBase64 = (filePath) => {
   try {
     const fullPath = path.join(__dirname, "../public/images", filePath);
+    console.log(`🖼️ Loading Image: ${fullPath}`); // Debug log
     if (fs.existsSync(fullPath)) {
       const bitmap = fs.readFileSync(fullPath);
       const ext = path.extname(fullPath).substring(1);
       return `data:image/${ext};base64,${bitmap.toString("base64")}`;
+    } else {
+      console.warn(`⚠️ Image not found: ${fullPath}`);
     }
   } catch (err) {
-    console.error("Error loading image:", filePath, err);
+    console.error(`❌ Error loading image ${filePath}:`, err.message);
   }
-  return "";
+  return ""; // Return empty string instead of crashing or erroring
 };
 
 // ✅ HELPER: Get Next Booking ID
