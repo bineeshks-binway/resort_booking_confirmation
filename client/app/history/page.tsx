@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Search, Calendar, ChevronRight } from 'lucide-react';
+import { Search, Calendar, ChevronRight, Home } from 'lucide-react';
 
 // Define Booking Type
 interface Booking {
@@ -80,6 +80,17 @@ export default function HistoryPage() {
     return (
         <div className="min-h-screen bg-gray-50 p-6 md:p-10 font-sans">
             <div className="max-w-6xl mx-auto">
+
+                {/* Back Button */}
+                <div className="mb-6">
+                    <button
+                        onClick={() => router.push('/')}
+                        className="flex items-center text-gray-600 hover:text-green-700 transition font-medium"
+                    >
+                        <Home className="w-4 h-4 mr-2" />
+                        Back to New Booking
+                    </button>
+                </div>
 
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
