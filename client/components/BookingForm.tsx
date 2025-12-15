@@ -114,7 +114,7 @@ export const BookingForm = () => {
 
         try {
             // Updated to use centralized API client
-            const res = await api.post('/generate-pdf', formData, {
+            const res = await api.post('/api/generate-pdf', formData, {
                 responseType: 'blob'
             });
 

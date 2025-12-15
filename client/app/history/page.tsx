@@ -35,7 +35,7 @@ export default function HistoryPage() {
 
     const fetchHistory = async () => {
         try {
-            const res = await api.get('/history');
+            const res = await api.get('/api/history');
             setBookings(res.data);
             setFilteredBookings(res.data);
         } catch (error) {

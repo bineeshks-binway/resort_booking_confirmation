@@ -22,7 +22,7 @@ export default function BookingDetailsPage() {
 
     const fetchBookingDetails = async () => {
         try {
-            const res = await api.get(`/booking/${params.id}`);
+            const res = await api.get(`/api/booking/${params.id}`);
             setBooking(res.data);
         } catch (error) {
             console.error("Error fetching booking details:", error);
@@ -41,7 +41,7 @@ export default function BookingDetailsPage() {
 
         setPdfLoading(true);
         try {
-            const response = await api.get(`/booking/${booking.bookingId}/pdf`, {
+            const response = await api.get(`/api/booking/${booking.bookingId}/pdf`, {
                 responseType: 'blob'
             });
 
