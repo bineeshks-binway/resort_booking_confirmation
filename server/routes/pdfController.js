@@ -178,7 +178,7 @@ router.post("/generate-pdf", async (req, res) => {
 
     browser = await getBrowser();
     page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 60000 });
     // await page.waitForSelector("img"); // Removed: Template uses CSS/Text only now
 
     const pdfBuffer = await page.pdf({
@@ -272,7 +272,7 @@ router.get("/booking/:id/pdf", async (req, res) => {
 
     browser = await getBrowser();
     page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 60000 });
     // await page.waitForSelector("img"); // Removed: Template uses CSS/Text only now
 
     const pdfBuffer = await page.pdf({
