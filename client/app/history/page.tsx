@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { Search, Calendar, ChevronRight } from 'lucide-react';
 
@@ -35,7 +35,7 @@ export default function HistoryPage() {
 
     const fetchHistory = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/history');
+            const res = await api.get('/history');
             setBookings(res.data);
             setFilteredBookings(res.data);
         } catch (error) {

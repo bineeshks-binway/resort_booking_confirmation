@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { Download, Copy, ArrowLeft, Building2, Calendar, Users, Utensils, CreditCard } from 'lucide-react';
 import { Button } from '@/components/Button';
@@ -22,7 +22,7 @@ export default function BookingDetailsPage() {
 
     const fetchBookingDetails = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/booking/${params.id}`);
+            const res = await api.get(`/booking/${params.id}`);
             setBooking(res.data);
         } catch (error) {
             console.error("Error fetching booking details:", error);
@@ -41,7 +41,7 @@ export default function BookingDetailsPage() {
 
         setPdfLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/booking/${booking.bookingId}/pdf`, {
+            const response = await api.get(`/booking/${booking.bookingId}/pdf`, {
                 responseType: 'blob'
             });
 
@@ -140,7 +140,7 @@ export default function BookingDetailsPage() {
                                 */}
                                 <div className="w-24 h-24 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0 border">
                                     <img
-                                        src={`http://localhost:5000/public/images/${booking.roomImage || 'room.webp'}`}
+                                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/public/images/${booking.roomImage || 'room.webp'}`}
                                         className="w-full h-full object-cover"
                                         alt="Room"
                                         onError={(e) => (e.currentTarget.src = '/room-placeholder.jpg')}

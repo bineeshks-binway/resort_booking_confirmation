@@ -114,12 +114,12 @@ export const BookingForm = () => {
 
         try {
             // Updated to use centralized API client
-            const response = await api.post('/api/generate-pdf', formData, {
+            const res = await api.post('/generate-pdf', formData, {
                 responseType: 'blob'
             });
 
             // 1. Download PDF
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const url = window.URL.createObjectURL(new Blob([res.data]));
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `booking_${formData.guestName.replace(/\s+/g, '_')}.pdf`);
@@ -129,7 +129,7 @@ export const BookingForm = () => {
 
             // 2. Redirect to Booking Details Page
             // Read ID from header (ensure lowercase for axios/CORS compatibility)
-            const bookingId = response.headers['x-booking-id'];
+            const bookingId = res.headers['x-booking-id'];
             if (bookingId) {
                 // Short delay to allow download to start
                 setTimeout(() => {
