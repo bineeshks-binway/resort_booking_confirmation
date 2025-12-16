@@ -52,6 +52,21 @@ export const BookingForm = () => {
 
     const [loading, setLoading] = useState(false);
 
+    // ✅ Fetch Next Booking ID on Mount
+    useEffect(() => {
+        const fetchNextId = async () => {
+            try {
+                const res = await api.get('/api/next-booking-id');
+                if (res.data && res.data.bookingId) {
+                    setFormData(prev => ({ ...prev, bookingId: res.data.bookingId }));
+                }
+            } catch (err) {
+                console.error("Failed to fetch next booking ID", err);
+            }
+        };
+        fetchNextId();
+    }, []);
+
     // ✅ Auto Calculation Logic
     useEffect(() => {
         // Calculate No. of Nights
@@ -178,18 +193,18 @@ export const BookingForm = () => {
             <Card className="w-full max-w-4xl mx-auto" title="New Booking Entry">
                 <form onSubmit={handleGeneratePDF} className="space-y-6">
 
-                    {/* Section 0: Booking ID (Manual Entry) */}
+                    {/* Section 0: Booking ID (Editable, Pre-filled) */}
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                         <Input
-                            label="Booking ID (Optional - Auto-generated if empty)"
+                            label="Booking ID (Auto-suggested)"
                             name="bookingId"
                             value={formData.bookingId}
                             onChange={handleChange}
-                            placeholder="e.g. WFR000991 (Leave empty for auto-gen)"
+                            placeholder="Loading..."
                             className="bg-white font-bold text-blue-800"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            Only enter a value if you need to manually override the automatic sequence.
+                            You can edit this manually. If you change it, the system will adapt the sequence for next time.
                         </p>
                     </div>
 
