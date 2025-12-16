@@ -178,6 +178,21 @@ export const BookingForm = () => {
             <Card className="w-full max-w-4xl mx-auto" title="New Booking Entry">
                 <form onSubmit={handleGeneratePDF} className="space-y-6">
 
+                    {/* Section 0: Booking ID (Manual Entry) */}
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <Input
+                            label="Booking ID (Optional - Auto-generated if empty)"
+                            name="bookingId"
+                            value={formData.bookingId}
+                            onChange={handleChange}
+                            placeholder="e.g. WFR000991 (Leave empty for auto-gen)"
+                            className="bg-white font-bold text-blue-800"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Only enter a value if you need to manually override the automatic sequence.
+                        </p>
+                    </div>
+
                     {/* Section 1: Guest Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Input

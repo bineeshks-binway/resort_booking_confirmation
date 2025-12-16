@@ -12,7 +12,7 @@ const resetCounter = async () => {
 
         const result = await Counter.findOneAndUpdate(
             { id: "bookingId" },
-            { $set: { seq: 1000 } }, // Set to 1000 so next inc makes it 1001
+            { $set: { seq: 990 } }, // Set to 990 so next inc makes it 991 (WFR000991)
             { new: true, upsert: true }
         );
 

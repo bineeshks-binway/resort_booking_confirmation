@@ -50,13 +50,51 @@ const getImageAsBase64 = (filePath) => {
 };
 
 // ✅ HELPER: Get Next Booking ID
+// Ensures ID is always based on the HIGHEST ID in DB or Counter
 const getNextBookingId = async () => {
-  const counter = await Counter.findOneAndUpdate(
+  // 1. Find the current highest booking ID in the Booking collection
+  const lastBooking = await Booking.findOne().sort({ bookingId: -1 });
+
+  let maxSeqInDb = 990; // Default start
+  if (lastBooking && lastBooking.bookingId) {
+    // Extract number from WFR000123
+    const lastSeq = parseInt(lastBooking.bookingId.replace("WFR", ""), 10);
+    if (!isNaN(lastSeq)) maxSeqInDb = lastSeq;
+  }
+
+  // 2. Atomically increment the counter to ensure strict sequence
+  // We use findOneAndUpdate to get the fresh counter
+  const counter = await Counter.findOne({ id: "bookingId" });
+  let currentCounterSeq = counter ? counter.seq : 990;
+
+  // 3. Determine the next sequence
+  // It must be greater than both the DB max and the current counter
+  let nextSeq = Math.max(maxSeqInDb, currentCounterSeq) + 1;
+
+  // 4. Sync the counter to this new high water mark
+  await Counter.findOneAndUpdate(
     { id: "bookingId" },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true } // Create if not exists
+    { $set: { seq: nextSeq } },
+    { upsert: true, new: true }
   );
-  return `WFR${String(counter.seq).padStart(6, '0')}`;
+
+  return `WFR${String(nextSeq).padStart(6, '0')}`;
+};
+
+// ✅ HELPER: Peek Next Booking ID (Without incrementing)
+const getNextBookingIdPeek = async () => {
+  const lastBooking = await Booking.findOne().sort({ bookingId: -1 });
+  let maxSeqInDb = 990;
+  if (lastBooking && lastBooking.bookingId) {
+    const lastSeq = parseInt(lastBooking.bookingId.replace("WFR", ""), 10);
+    if (!isNaN(lastSeq)) maxSeqInDb = lastSeq;
+  }
+
+  const counter = await Counter.findOne({ id: "bookingId" });
+  let currentCounterSeq = counter ? counter.seq : 990;
+
+  let nextSeq = Math.max(maxSeqInDb, currentCounterSeq) + 1;
+  return `WFR${String(nextSeq).padStart(6, '0')}`;
 };
 
 // ✅ HELPER: Get Image Path based on Room Type
@@ -104,9 +142,42 @@ router.post("/generate-pdf", async (req, res) => {
 
     console.log(`📝 Processing New Booking for: ${guestName}`);
 
-    // 1️⃣ GENERATE BOOKING ID
-    const bookingId = await getNextBookingId();
-    console.log(`🆔 Generated Booking ID: ${bookingId}`);
+    // 1️⃣ GENERATE OR USE PROVIDED BOOKING ID
+    let bookingId = req.body.bookingId;
+
+    // Validate custom ID format if provided (Admin Manual Override)
+    if (bookingId && bookingId.trim() !== "") {
+      // Basic format check (WFR + 6 digits)
+      if (!/^WFR\d{6}$/.test(bookingId)) {
+        return res.status(400).json({ message: "Invalid Booking ID format. Must be 'WFR' followed by 6 digits (e.g., WFR000991)." });
+      }
+
+      // Check for duplicates (Rule 8: Prevent duplicate booking IDs)
+      const existing = await Booking.findOne({ bookingId });
+      if (existing) {
+        // Rule 9: If duplicate bookingId is attempted, throw a clear error
+        return res.status(409).json({ message: `Booking ID ${bookingId} already exists. Please check the ID or leave empty for auto-generation.` });
+      }
+
+      // Rule 6: If admin manually sets bookingId, the next automatic one must be higher
+      const manualSeq = parseInt(bookingId.replace("WFR", ""), 10);
+
+      // Update Counter if manual ID is greater than current sequence
+      // This ensures the NEXT auto-generated ID will be manualSeq + 1
+      await Counter.findOneAndUpdate(
+        { id: "bookingId" },
+        // Only update if manualSeq is greater than current seq (using $max)
+        { $max: { seq: manualSeq } },
+        { upsert: true }
+      );
+      console.log(`🔢 Counter synced to ${manualSeq} (if higher) due to manual override.`);
+
+    } else {
+      // Rule 2 & 7: Auto-generate ONLY on booking creation, based on HIGHEST ID
+      bookingId = await getNextBookingId();
+    }
+
+    console.log(`🆔 Using Booking ID: ${bookingId}`);
 
     // 2️⃣ DETERMINE ROOM IMAGE
     const roomImageFile = getRoomImageFile(roomType); // e.g. "rooms/nalukettu.png"
@@ -389,6 +460,19 @@ router.get("/bookings/search", async (req, res) => {
   } catch (error) {
     console.error("Search error:", error);
     res.status(500).json({ message: "Search failed" });
+  }
+});
+
+// ==========================================
+// 🚀 API 5: GET NEXT BOOKING ID (PEEK)
+// ==========================================
+router.get("/next-booking-id", async (req, res) => {
+  try {
+    const nextId = await getNextBookingIdPeek();
+    res.json({ bookingId: nextId });
+  } catch (error) {
+    console.error("Error fetching next booking ID:", error);
+    res.status(500).json({ message: "Failed to fetch next booking ID" });
   }
 });
 
