@@ -59,7 +59,8 @@ const getNextBookingId = async () => {
   if (lastBooking && lastBooking.bookingId) {
     // Extract number from WFR000123
     const lastSeq = parseInt(lastBooking.bookingId.replace("WFR", ""), 10);
-    if (!isNaN(lastSeq)) maxSeqInDb = lastSeq;
+    // FIX: Always respect the minimum of 990, even if DB has lower IDs
+    if (!isNaN(lastSeq)) maxSeqInDb = Math.max(990, lastSeq);
   }
 
   // 2. Atomically increment the counter to ensure strict sequence
@@ -87,7 +88,8 @@ const getNextBookingIdPeek = async () => {
   let maxSeqInDb = 990;
   if (lastBooking && lastBooking.bookingId) {
     const lastSeq = parseInt(lastBooking.bookingId.replace("WFR", ""), 10);
-    if (!isNaN(lastSeq)) maxSeqInDb = lastSeq;
+    // FIX: Always respect the minimum of 990, even if DB has lower IDs
+    if (!isNaN(lastSeq)) maxSeqInDb = Math.max(990, lastSeq);
   }
 
   const counter = await Counter.findOne({ id: "bookingId" });
