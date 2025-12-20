@@ -109,15 +109,17 @@ const sendBookingEmail = async (bookingData) => {
  * Send Test Email (Plain Text)
  * @returns {Promise<Object>}
  */
-const sendTestEmail = async () => {
+const sendTestEmail = async (customRecipient) => {
     const senderEmail = process.env.RESORT_EMAIL;
     if (!senderEmail) throw new Error("RESORT_EMAIL env var missing");
 
+    const recipient = customRecipient || senderEmail;
+
     const mailOptions = {
         from: `"Wayanad Fort Resort Debug" <${senderEmail}>`,
-        to: senderEmail, // Send to self
+        to: recipient,
         subject: "Test Email from Server Route",
-        text: "This is a test email triggered from the /api/test-email endpoint. If you see this, email sending is WORKING!"
+        text: `This is a test email triggered from the /api/test-email endpoint.\n\nSent FROM: ${senderEmail}\nSent TO: ${recipient}\n\nIf you see this, email sending is WORKING!`
     };
 
     return await transporter.sendMail(mailOptions);

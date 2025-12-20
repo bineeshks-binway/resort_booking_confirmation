@@ -541,8 +541,13 @@ router.get("/next-booking-id", async (req, res) => {
 router.get("/test-email", async (req, res) => {
   try {
     const { sendTestEmail } = require("../services/emailService");
-    const info = await sendTestEmail();
-    res.json({ message: "Test email sent successfully", info });
+    const recipient = req.query.to; // Allow ?to=user@gmail.com
+    const info = await sendTestEmail(recipient);
+    res.json({
+      message: "Test email sent successfully",
+      recipient: recipient || "Same as Sender",
+      messageId: info.messageId
+    });
   } catch (error) {
     console.error("Test email failed:", error);
     res.status(500).json({ message: "Test email failed", error: error.message, stack: error.stack });
