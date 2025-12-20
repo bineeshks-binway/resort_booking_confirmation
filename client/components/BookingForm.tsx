@@ -5,9 +5,9 @@ import { Input } from './Input';
 import { Select } from './Select';
 import { Button } from './Button';
 import { Card } from './Card';
-import { ArrowRight, Download, Calculator, History } from 'lucide-react'; // Added History icon
-import api from '@/lib/api'; // Import centralized API
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { ArrowRight, Download, Calculator, History, Save } from 'lucide-react';
+import api from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 const ROOM_PRICES: Record<string, number> = {
     'Nalukettu': 6500,
@@ -31,58 +31,101 @@ const BOOKING_STATUSES = [
     { value: 'ON_HOLD', label: 'Not Confirmed' }
 ];
 
-export const BookingForm = () => {
-    const router = useRouter(); // router instance
+interface BookingFormProps {
+    initialData?: any;
+    isEditMode?: boolean;
+    bookingId?: string;
+}
+
+export const BookingForm = ({ initialData, isEditMode = false, bookingId }: BookingFormProps) => {
+    const router = useRouter();
     const [formData, setFormData] = useState({
         guestName: '',
         phoneNumber: '+91 ',
         checkIn: '',
         checkOut: '',
-        guests: 2, // No. of Persons
+        guests: { adults: '2', children: '0' },
         roomType: 'Nalukettu',
-        noOfRooms: 1,
-        noOfNights: 1,
+        noOfRooms: '1',
+        noOfNights: '1',
         mealPlan: [] as string[],
-        price: 6500, // Total Amount
-        advanceAmount: 0,
-        pendingAmount: 6500,
+        price: '6500', // String for input UX
+        advanceAmount: '0', // String for input UX
+        pendingAmount: 6500, // Calculated number
         bookingStatus: 'CONFIRMED'
     });
 
     const [loading, setLoading] = useState(false);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-
-
-    // ✅ Auto Calculation Logic
+    // Initialize form with existing data if in Edit Mode
     useEffect(() => {
-        // Calculate No. of Nights
+        if (initialData) {
+            setFormData(prev => ({
+                ...prev,
+                ...initialData,
+                checkIn: initialData.checkIn ? new Date(initialData.checkIn).toISOString().split('T')[0] : '',
+                checkOut: initialData.checkOut ? new Date(initialData.checkOut).toISOString().split('T')[0] : '',
+                // Ensure numeric fields are numbers
+                // Ensure numeric fields are numbers, but converted to string for inputs
+                price: String(initialData.totalAmount || initialData.price || 0),
+                advanceAmount: String(initialData.advanceAmount || 0),
+                pendingAmount: Number(initialData.pendingAmount),
+                guests: typeof initialData.guests === 'object'
+                    ? {
+                        adults: String(initialData.guests.adults || 2),
+                        children: String(initialData.guests.children || 0)
+                    }
+                    : { adults: String(initialData.guests || 2), children: '0' },
+                noOfRooms: String(initialData.noOfRooms || 1),
+                noOfNights: String(initialData.noOfNights || 1)
+            }));
+        }
+    }, [initialData]);
+
+    // ✅ Auto Calculation Logic (Only calculate if user actively changes dates in UI, or on initial load if we want to force recalc - but better to trust DB in edit mode unless changed)
+    // We need to be careful not to overwrite DB values on first render of edit mode unless we specifically want to recalculate.
+    // For now, let's keep the logic but maybe guard it? Actually, if dates are present, recalculating nights matches expectation.
+    useEffect(() => {
         if (formData.checkIn && formData.checkOut) {
             const start = new Date(formData.checkIn);
             const end = new Date(formData.checkOut);
             const diffTime = Math.abs(end.getTime() - start.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            if (diffDays > 0 && diffDays !== formData.noOfNights) {
-                setFormData(prev => ({ ...prev, noOfNights: diffDays }));
+            if (diffDays > 0 && diffDays !== Number(formData.noOfNights)) {
+                setFormData(prev => ({ ...prev, noOfNights: String(diffDays) }));
             }
         }
     }, [formData.checkIn, formData.checkOut]);
 
     // ✅ Price Calculation
+    // In edit mode, we might want to allow manual override? Or stick to formula?
+    // Requirement says "Editable form". Usually price is auto-calculated.
+    // ✅ Price Calculation
+    // In edit mode, we might want to allow manual override? Or stick to formula?
+    // Requirement says "Editable form". Usually price is auto-calculated.
     useEffect(() => {
-        const basePrice = ROOM_PRICES[formData.roomType] || 0;
-        const total = basePrice * formData.noOfRooms * formData.noOfNights;
+        const basePrice = ROOM_PRICES[formData.roomType] || 6500; // Fallback to base price
+        const rooms = Number(formData.noOfRooms) || 1; // Default to 1 if 0/NaN
+        const nights = Number(formData.noOfNights) || 1; // Default to 1 if 0/NaN
 
-        setFormData(prev => {
-            return { ...prev, price: total };
-        });
+        const total = basePrice * rooms * nights;
+
+        // Update price as string
+        setFormData(prev => ({ ...prev, price: String(total) }));
 
     }, [formData.roomType, formData.noOfRooms, formData.noOfNights]);
 
     // ✅ Pending Amount Calculation
+    // ✅ Pending Amount Calculation
     useEffect(() => {
+        // Safe Parse
+        const p = Number(formData.price) || 0;
+        const a = Number(formData.advanceAmount) || 0;
+
         setFormData(prev => ({
             ...prev,
-            pendingAmount: prev.price - prev.advanceAmount
+            pendingAmount: p - a
         }));
     }, [formData.price, formData.advanceAmount]);
 
@@ -92,11 +135,42 @@ export const BookingForm = () => {
 
         setFormData(prev => {
             let newVal: any = value;
-            if (['guests', 'noOfRooms', 'noOfNights', 'price', 'advanceAmount'].includes(name)) {
-                newVal = parseFloat(value) || 0;
+
+            // Handle Numeric Fields: Rooms, Nights, Price, Advance
+            if (['noOfRooms', 'noOfNights', 'price', 'advanceAmount'].includes(name)) {
+                if (value === '' || /^[0-9]+$/.test(value)) {
+                    // Remove leading zero if length > 1
+                    if (value.length > 1 && value.startsWith('0')) {
+                        newVal = value.replace(/^0+/, '');
+                        if (newVal === '') newVal = '0';
+                    } else {
+                        newVal = value;
+                    }
+                } else {
+                    return prev;
+                }
             }
+
             return { ...prev, [name]: newVal };
         });
+    };
+
+    const handleGuestChange = (type: 'adults' | 'children', value: string) => {
+        if (value === '' || /^[0-9]+$/.test(value)) {
+            let newVal = value;
+            if (newVal.length > 1 && newVal.startsWith('0')) {
+                newVal = newVal.replace(/^0+/, '');
+                if (newVal === '') newVal = '0';
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                guests: {
+                    ...prev.guests,
+                    [type]: newVal
+                }
+            }));
+        }
     };
 
     const handleMealToggle = (plan: string) => {
@@ -109,75 +183,113 @@ export const BookingForm = () => {
         });
     };
 
-    const handleGeneratePDF = async (e: React.FormEvent) => {
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            // Updated to use centralized API client
-            const res = await api.post('/api/generate-pdf', formData, {
-                responseType: 'blob'
-            });
+            if (isEditMode && bookingId) {
+                // UPDATE EXISTING BOOKING
+                const finalPayload = {
+                    ...formData,
+                    // Convert all strings to numbers for backend
+                    guests: {
+                        adults: Number(formData.guests.adults || 0),
+                        children: Number(formData.guests.children || 0)
+                    },
+                    noOfRooms: Number(formData.noOfRooms || 1),
+                    noOfNights: Number(formData.noOfNights || 1),
+                    totalAmount: Number(formData.price || 0),
+                    advanceAmount: Number(formData.advanceAmount || 0),
+                    pendingAmount: Number(formData.pendingAmount || 0)
+                };
 
-            // 1. Download PDF
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `booking_${formData.guestName.replace(/\s+/g, '_')}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+                await api.put(`/api/booking/${bookingId}`, finalPayload);
+                alert("Booking Updated Successfully!");
+                router.push('/history');
+            } else {
+                // CREATE NEW BOOKING & GENERATE PDF
+                const createPayload = {
+                    ...formData,
+                    guests: {
+                        adults: Number(formData.guests.adults || 0),
+                        children: Number(formData.guests.children || 0)
+                    },
+                    noOfRooms: Number(formData.noOfRooms || 1),
+                    noOfNights: Number(formData.noOfNights || 1),
+                    price: Number(formData.price || 0),
+                    advanceAmount: Number(formData.advanceAmount || 0),
+                    pendingAmount: Number(formData.pendingAmount || 0)
+                };
 
-            // 2. Redirect to Booking Details Page
-            // Read ID from header (ensure lowercase for axios/CORS compatibility)
-            const bookingId = res.headers['x-booking-id'];
-            if (bookingId) {
-                // Short delay to allow download to start
-                setTimeout(() => {
-                    router.push(`/booking/${bookingId}`);
-                }, 1000);
-            }
+                const res = await api.post('/api/generate-pdf', createPayload, {
+                    responseType: 'blob'
+                });
 
-        } catch (error: any) {
-            console.error("PDF Generation failed", error);
-            let message = error.message;
-            const status = error.response?.status;
+                // Download PDF
+                const url = window.URL.createObjectURL(new Blob([res.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `booking_${formData.guestName.replace(/\s+/g, '_')}.pdf`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
 
-            if (error.response?.data instanceof Blob) {
-                // Parse Blob error response
-                try {
-                    const text = await error.response.data.text();
-                    const json = JSON.parse(text);
-                    message = json.message || json.error || message;
-                    if (json.error) message += ` (${json.error})`;
-                } catch (e) {
-                    // Fallback if not JSON
-                    message = "Server Error (Check logs)";
+                // Redirect
+                const newBookingId = res.headers['x-booking-id'];
+                if (newBookingId) {
+                    setTimeout(() => router.push(`/booking/${newBookingId}`), 1000);
                 }
-            } else if (error.response?.data?.message) {
-                message = error.response.data.message;
             }
-
-            alert(`Failed to generate PDF. Error: ${status || 'Network'} - ${message}`);
+        } catch (error: any) {
+            console.error("Submission failed", error);
+            alert(`Action Failed: ${error.response?.data?.message || error.message}`);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleDownloadPDF = async () => {
+        if (!bookingId) return;
+        setDownloadingPdf(true);
+        try {
+            const res = await api.get(`/api/booking/${bookingId}/pdf`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `booking_${formData.guestName.replace(/\s+/g, '_')}_${bookingId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("PDF Download failed", error);
+            alert("Failed to download PDF");
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
     return (
         <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between mb-4">
+                <Button
+                    variant="secondary"
+                    onClick={() => router.push('/')}
+                    className="flex items-center gap-2 text-sm"
+                >
+                    Create New
+                </Button>
                 <Button
                     variant="secondary"
                     onClick={() => router.push('/history')}
                     className="flex items-center gap-2 text-sm"
                 >
-                    <History className="w-4 h-4" /> View Booking History
+                    <History className="w-4 h-4" /> View History
                 </Button>
             </div>
 
-            <Card className="w-full max-w-4xl mx-auto" title="New Booking Entry">
-                <form onSubmit={handleGeneratePDF} className="space-y-6">
+            <Card className="w-full max-w-4xl mx-auto" title={isEditMode ? `Edit Booking: ${bookingId}` : "New Booking Entry"}>
+                <form onSubmit={handleFormSubmit} className="space-y-6">
 
                     {/* Section 1: Guest Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -219,19 +331,28 @@ export const BookingForm = () => {
                         />
                         <Input
                             label="Nights"
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             name="noOfNights"
                             value={formData.noOfNights}
                             onChange={handleChange}
-                            min={1}
                         />
                         <Input
-                            label="Persons"
-                            type="number"
-                            name="guests"
-                            value={formData.guests}
-                            onChange={handleChange}
-                            min={1}
+                            label="Adults"
+                            type="text"
+                            inputMode="numeric"
+                            name="adults"
+                            value={formData.guests.adults}
+                            onChange={(e) => handleGuestChange('adults', e.target.value)}
+                            required
+                        />
+                        <Input
+                            label="Children"
+                            type="text"
+                            inputMode="numeric"
+                            name="children"
+                            value={formData.guests.children}
+                            onChange={(e) => handleGuestChange('children', e.target.value)}
                         />
                     </div>
 
@@ -248,11 +369,11 @@ export const BookingForm = () => {
                             <div className="mt-4 flex items-center gap-4">
                                 <Input
                                     label="No. of Rooms"
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     name="noOfRooms"
                                     value={formData.noOfRooms}
                                     onChange={handleChange}
-                                    min={1}
                                 />
                             </div>
                         </div>
@@ -292,7 +413,8 @@ export const BookingForm = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <Input
                                 label="Total Amount (₹)"
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
                                 name="price"
                                 value={formData.price}
                                 onChange={handleChange}
@@ -300,7 +422,8 @@ export const BookingForm = () => {
 
                             <Input
                                 label="Advance Paid (₹)"
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
                                 name="advanceAmount"
                                 value={formData.advanceAmount}
                                 onChange={handleChange}
@@ -317,9 +440,21 @@ export const BookingForm = () => {
                         </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3">
+                    <div className="pt-4 flex flex-col md:flex-row justify-end gap-3">
+                        {isEditMode && (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleDownloadPDF}
+                                isLoading={downloadingPdf}
+                                className="flex items-center gap-2"
+                            >
+                                <Download className="w-4 h-4" /> Download PDF
+                            </Button>
+                        )}
                         <Button type="submit" isLoading={loading} className="w-full md:w-auto flex items-center gap-2">
-                            <Download className="w-4 h-4" /> Generate PDF & Create Booking
+                            {isEditMode ? <Save className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                            {isEditMode ? "Update Booking Changes" : "Generate PDF & Create Booking"}
                         </Button>
                     </div>
                 </form>

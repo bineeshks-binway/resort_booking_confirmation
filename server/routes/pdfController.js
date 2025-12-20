@@ -120,6 +120,17 @@ const formatCurrency = (amount) => {
   }).format(Number(amount || 0));
 };
 
+// ✅ HELPER: Format Guests for Display
+const formatGuests = (guests) => {
+  if (!guests) return "0 Guests";
+  if (typeof guests === 'object') {
+    const adults = guests.adults || 0;
+    const children = guests.children || 0;
+    return `${adults} Adults + ${children} Children`;
+  }
+  return `${guests} Guests`; // Legacy number support
+};
+
 // ==========================================
 // 🚀 API 1: CREATE BOOKING & GENERATE PDF
 // ==========================================
@@ -132,7 +143,9 @@ router.post("/generate-pdf", async (req, res) => {
       phoneNumber,
       checkIn,
       checkOut,
-      guests,
+      guests, // Can be object or number
+      adults, // Optional input if not sending 'guests' object directly
+      children, // Optional input
       roomType,
       mealPlan,
       price,
@@ -142,6 +155,20 @@ router.post("/generate-pdf", async (req, res) => {
       noOfNights,
       bookingStatus = "CONFIRMED" // Default status
     } = req.body;
+
+    // Normalize Guests Data
+    let finalGuests = guests;
+    if (adults || children) {
+      finalGuests = {
+        adults: Number(adults || 0),
+        children: Number(children || 0)
+      };
+    } else if (typeof guests === 'number') {
+      // If frontend sends number, keep it (legacy compatibility)
+      // Or strictly convert? Let's allow flexibility.
+      finalGuests = guests;
+    }
+    // If guests is alrady an object from frontend, use it.
 
     console.log(`📝 Processing New Booking for: ${guestName}`);
 
@@ -161,7 +188,7 @@ router.post("/generate-pdf", async (req, res) => {
       phoneNumber,
       checkIn,
       checkOut,
-      guests,
+      guests: finalGuests,
       roomType,
       roomImage: roomImageFile,
       mealPlan: Array.isArray(mealPlan) ? mealPlan : (mealPlan ? [mealPlan] : []),
@@ -187,7 +214,7 @@ router.post("/generate-pdf", async (req, res) => {
         phoneNumber: newBooking.phoneNumber,
         checkIn: newBooking.checkIn,
         checkOut: newBooking.checkOut,
-        guests: newBooking.guests,
+        guests: formatGuests(newBooking.guests), // Format for Email
         roomType: newBooking.roomType,
         mealPlan: Array.isArray(newBooking.mealPlan) ? newBooking.mealPlan.join(", ") : (newBooking.mealPlan || "None"),
         priceFormatted: formatCurrency(newBooking.totalAmount),
@@ -227,7 +254,7 @@ router.post("/generate-pdf", async (req, res) => {
       phoneNumber: newBooking.phoneNumber,
       checkIn: newBooking.checkIn,
       checkOut: newBooking.checkOut,
-      guests: newBooking.guests,
+      guests: formatGuests(newBooking.guests), // Format for PDF
       noOfRooms: newBooking.noOfRooms || 1,
       noOfNights: newBooking.noOfNights || 1,
       roomType: newBooking.roomType,
@@ -322,7 +349,7 @@ router.get("/booking/:id/pdf", async (req, res) => {
       phoneNumber: booking.phoneNumber,
       checkIn: booking.checkIn,
       checkOut: booking.checkOut,
-      guests: booking.guests,
+      guests: formatGuests(booking.guests), // Format for PDF
       noOfRooms: booking.noOfRooms || 1,
       noOfNights: booking.noOfNights || 1,
       roomType: booking.roomType,
@@ -403,26 +430,28 @@ router.get("/booking/:id", async (req, res) => {
 // ==========================================
 // 🚀 API 3.5: UPDATE BOOKING
 // ==========================================
+// ==========================================
+// 🚀 API 3.5: UPDATE BOOKING
+// ==========================================
 router.put("/booking/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    // Prevent changing _id
+    // 🔒 SECURITY: Prevent changing Immutable Fields
     delete updates._id;
+    delete updates.bookingId; // key requirement: ID never changes
+    delete updates.createdAt;
 
-    // Check for ID uniqueness if changing bookingId
-    if (updates.bookingId) {
-      const existing = await Booking.findOne({ bookingId: updates.bookingId });
-      if (existing && existing._id.toString() !== (await Booking.findOne({ bookingId: id }))._id.toString()) {
-        return res.status(400).json({ message: "Booking ID already exists" });
-      }
-    }
+    // If updating guest count or room details, we might need to recalculate price?
+    // For now, we assume frontend provides the correct new price if changed.
+    // Ideally, we should recalculate here to be safe, but adhering to "don't break existing logic"
+    // and trusting the form data which contains the calculated price.
 
     const booking = await Booking.findOneAndUpdate(
       { bookingId: id },
       { $set: updates },
-      { new: true }
+      { new: true } // Return updated doc
     );
 
     if (!booking) {

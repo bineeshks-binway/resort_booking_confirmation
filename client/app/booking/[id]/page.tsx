@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
-import { Download, Copy, ArrowLeft, Building2, Calendar, Users, Utensils, CreditCard } from 'lucide-react';
+import { Download, Copy, ArrowLeft, Building2, Calendar, Users, Utensils, CreditCard, Edit } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 
@@ -68,6 +68,10 @@ export default function BookingDetailsPage() {
         router.push('/');
     };
 
+    const handleEdit = () => {
+        router.push(`/booking/edit/${booking.bookingId}`);
+    };
+
     if (loading) return <div className="flex justify-center p-20 text-gray-500">Loading details...</div>;
     if (!booking) return <div className="p-20 text-center text-red-500">Booking not found</div>;
 
@@ -87,6 +91,9 @@ export default function BookingDetailsPage() {
                         <p className="text-gray-500 mt-1">Booked on {new Date(booking.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="flex gap-3">
+                        <Button onClick={handleEdit} variant="secondary" className="flex gap-2">
+                            <Edit className="w-4 h-4" /> Edit
+                        </Button>
                         <Button onClick={handleDuplicate} variant="secondary" className="flex gap-2">
                             <Copy className="w-4 h-4" /> Duplicate
                         </Button>
@@ -158,7 +165,10 @@ export default function BookingDetailsPage() {
                                     <div>
                                         <label className="text-xs text-gray-500">Guests</label>
                                         <div className="font-medium text-gray-600 flex items-center gap-1">
-                                            <Users className="w-4 h-4" /> {booking.guests}
+                                            <Users className="w-4 h-4" />
+                                            {typeof booking.guests === 'object'
+                                                ? `${booking.guests.adults} Adults + ${booking.guests.children} Children`
+                                                : `${booking.guests} Person(s)`}
                                         </div>
                                     </div>
                                     <div>

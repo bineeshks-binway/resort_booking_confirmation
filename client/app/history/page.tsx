@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { Search, Calendar, ChevronRight, Home } from 'lucide-react';
+import { Search, Calendar, ChevronRight, Home, Edit, Download, Eye } from 'lucide-react';
 
 // Define Booking Type
 interface Booking {
@@ -13,7 +13,7 @@ interface Booking {
     phoneNumber: string;
     checkIn: string;
     checkOut: string;
-    guests: number;
+    guests: number | { adults: number; children: number };
     roomType: string;
     totalAmount: number;
     createdAt: string;
@@ -24,6 +24,7 @@ export default function HistoryPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     // Search Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +44,31 @@ export default function HistoryPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDownloadPDF = async (e: React.MouseEvent, booking: Booking) => {
+        e.stopPropagation(); // Prevent row click
+        setDownloadingId(booking.bookingId);
+        try {
+            const res = await api.get(`/api/booking/${booking.bookingId}/pdf`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `booking_${booking.guestName.replace(/\s+/g, '_')}_${booking.bookingId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("PDF Download failed", error);
+            alert("Failed to download PDF");
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
+    const handleEdit = (e: React.MouseEvent, bookingId: string) => {
+        e.stopPropagation();
+        router.push(`/booking/edit/${bookingId}`);
     };
 
     // Handle Search & Filter
@@ -140,15 +166,12 @@ export default function HistoryPage() {
                                             <table className="w-full text-left text-sm text-gray-600">
                                                 <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-xs">
                                                     <tr>
-                                                        <th className="p-4">#</th>
                                                         <th className="p-4">Booking ID</th>
                                                         <th className="p-4">Guest Name</th>
-                                                        <th className="p-4">Guests</th>
-                                                        <th className="p-4">Check-in</th>
-                                                        <th className="p-4">Check-out</th>
+                                                        <th className="p-4">Dates</th>
                                                         <th className="p-4">Room</th>
                                                         <th className="p-4 text-right">Amount</th>
-                                                        <th className="p-4"></th>
+                                                        <th className="p-4 text-center">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y">
@@ -156,14 +179,14 @@ export default function HistoryPage() {
                                                         <tr
                                                             key={booking._id}
                                                             onClick={() => router.push(`/booking/${booking.bookingId}`)}
-                                                            className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                            className="hover:bg-gray-50 cursor-pointer transition-colors group"
                                                         >
-                                                            <td className="p-4 text-gray-400">{index + 1}</td>
-                                                            <td className="p-4 font-bold text-orange-600">{booking.bookingId}</td>
+                                                            <td className="p-4 font-bold text-orange-600 whitespace-nowrap">{booking.bookingId}</td>
                                                             <td className="p-4 font-medium text-gray-900">{booking.guestName}</td>
-                                                            <td className="p-4">{booking.guests}</td>
-                                                            <td className="p-4">{new Date(booking.checkIn).toLocaleDateString('en-GB')}</td>
-                                                            <td className="p-4">{new Date(booking.checkOut).toLocaleDateString('en-GB')}</td>
+                                                            <td className="p-4 whitespace-nowrap">
+                                                                <div className="text-xs text-gray-500">In: {new Date(booking.checkIn).toLocaleDateString('en-GB')}</div>
+                                                                <div className="text-xs text-gray-500">Out: {new Date(booking.checkOut).toLocaleDateString('en-GB')}</div>
+                                                            </td>
                                                             <td className="p-4">
                                                                 <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-semibold border border-green-200">
                                                                     {booking.roomType}
@@ -172,8 +195,36 @@ export default function HistoryPage() {
                                                             <td className="p-4 text-right font-bold text-gray-800">
                                                                 ₹{booking.totalAmount.toLocaleString('en-IN')}
                                                             </td>
-                                                            <td className="p-4 text-gray-400">
-                                                                <ChevronRight className="w-4 h-4" />
+                                                            <td className="p-4 flex justify-center gap-2">
+                                                                <button
+                                                                    onClick={(e) => handleEdit(e, booking.bookingId)}
+                                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                                    title="Edit Booking"
+                                                                >
+                                                                    <Edit className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleDownloadPDF(e, booking)}
+                                                                    className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors"
+                                                                    title="Download PDF"
+                                                                    disabled={downloadingId === booking.bookingId}
+                                                                >
+                                                                    {downloadingId === booking.bookingId ? (
+                                                                        <span className="animate-spin">⌛</span>
+                                                                    ) : (
+                                                                        <Download className="w-4 h-4" />
+                                                                    )}
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        router.push(`/booking/${booking.bookingId}`);
+                                                                    }}
+                                                                    className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors block md:hidden"
+                                                                    title="View Details"
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                </button>
                                                             </td>
                                                         </tr>
                                                     ))}

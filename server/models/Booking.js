@@ -23,8 +23,8 @@ const bookingSchema = new mongoose.Schema({
         type: Date,
         required: true
     },
-    guests: { // Number of persons
-        type: Number,
+    guests: { // Number of persons (legacy) or Object { adults, children }
+        type: mongoose.Schema.Types.Mixed,
         required: true,
         default: 1
     },
