@@ -54,12 +54,12 @@ export default function SightseeingPage() {
         {
             name: "Kanthanpara Waterfalls",
             description: "A scenic waterfall surrounded by lush greenery, offering a peaceful spot to relax and enjoy nature. Easy access and ideal for photography.",
-            image: "/sightseeing/kanthanpara-waterfalls.jpg"
+            image: "/sightseeing/kanthanpara-water-falls.webp"
         },
         {
             name: "900 Kandi View Point",
             description: "A thrilling hilltop destination featuring a glass bridge and breathtaking valley views. Popular for adventure experiences like zip-lining and off-road jeep rides.",
-            image: "/sightseeing/900-kandi.jpg"
+            image: "/sightseeing/900kandi.jpg"
         },
 
         {
