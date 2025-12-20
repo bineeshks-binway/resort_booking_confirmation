@@ -403,8 +403,25 @@ router.get("/booking/:id/pdf", async (req, res) => {
 // ==========================================
 router.get("/history", async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    res.json(bookings);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const bookings = await Booking.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalDocs = await Booking.countDocuments();
+    const hasMore = skip + bookings.length < totalDocs;
+
+    res.json({
+      bookings,
+      currentPage: page,
+      totalPages: Math.ceil(totalDocs / limit),
+      hasMore,
+      totalBooks: totalDocs
+    });
   } catch (error) {
     console.error("Error fetching history:", error);
     res.status(500).json({ message: "Failed to fetch history" });
@@ -483,11 +500,21 @@ router.get("/bookings/search", async (req, res) => {
 
     if (startDate || endDate) {
       query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      // Set start date to beginning of day
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        query.createdAt.$gte = start;
+      }
+      // Set end date to end of day
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
     }
 
-    const bookings = await Booking.find(query).sort({ createdAt: -1 });
+    const bookings = await Booking.find(query).sort({ createdAt: -1 }).limit(100); // Limit search results too
     res.json(bookings);
   } catch (error) {
     console.error("Search error:", error);
@@ -505,6 +532,20 @@ router.get("/next-booking-id", async (req, res) => {
   } catch (error) {
     console.error("Error fetching next booking ID:", error);
     res.status(500).json({ message: "Failed to fetch next booking ID" });
+  }
+});
+
+// ==========================================
+// 🚀 API 6: TEST EMAIL
+// ==========================================
+router.get("/test-email", async (req, res) => {
+  try {
+    const { sendTestEmail } = require("../services/emailService");
+    const info = await sendTestEmail();
+    res.json({ message: "Test email sent successfully", info });
+  } catch (error) {
+    console.error("Test email failed:", error);
+    res.status(500).json({ message: "Test email failed", error: error.message, stack: error.stack });
   }
 });
 

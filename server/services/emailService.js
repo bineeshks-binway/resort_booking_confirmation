@@ -12,6 +12,24 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// DEBUG: Verify connection configuration on startup
+if (process.env.RESORT_EMAIL) {
+    console.log("📧 Email Service Initializing...");
+    console.log(`📧 User: ${process.env.RESORT_EMAIL}`);
+    console.log("📧 Password Set:", process.env.RESORT_EMAIL_APP_PASSWORD ? "YES (******)" : "NO");
+
+    transporter.verify(function (error, success) {
+        if (error) {
+            console.error("❌ Email Transporter Verification Failed:", error);
+        } else {
+            console.log("✅ Email Server is ready to take our messages");
+        }
+    });
+} else {
+    console.warn("⚠️ RESORT_EMAIL environment variable is missing. Email service will not work.");
+}
+
+
 /**
  * Validate Email Address Format
  * @param {string} email
@@ -75,11 +93,34 @@ const sendBookingEmail = async (bookingData) => {
     } catch (error) {
         // 4. ERROR HANDLING
         // Log the full error but do not throw, ensuring booking flow continues
-        console.error("❌ Email sending failed:", error.message);
+        console.error("❌ Email sending failed for:", recipientEmail);
+        console.error("   Error Message:", error.message);
         if (error.response) {
-            console.error("🔍 SMTP Response:", error.response);
+            console.error("   SMTP Response:", error.response);
+        }
+        if (error.code) {
+            console.error("   Error Code:", error.code);
         }
     }
 };
 
-module.exports = { sendBookingEmail };
+
+/**
+ * Send Test Email (Plain Text)
+ * @returns {Promise<Object>}
+ */
+const sendTestEmail = async () => {
+    const senderEmail = process.env.RESORT_EMAIL;
+    if (!senderEmail) throw new Error("RESORT_EMAIL env var missing");
+
+    const mailOptions = {
+        from: `"Wayanad Fort Resort Debug" <${senderEmail}>`,
+        to: senderEmail, // Send to self
+        subject: "Test Email from Server Route",
+        text: "This is a test email triggered from the /api/test-email endpoint. If you see this, email sending is WORKING!"
+    };
+
+    return await transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendBookingEmail, sendTestEmail };
