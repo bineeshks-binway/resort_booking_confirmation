@@ -49,7 +49,6 @@ export default function GalleryPage() {
                     onImageClick={openLightbox}
                 />
             </div>
-
             <LightboxModal
                 isOpen={lightboxOpen}
                 imageSrc={currentImage?.src}

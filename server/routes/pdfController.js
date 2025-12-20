@@ -7,6 +7,7 @@ const QRCode = require("qrcode");
 const fs = require("fs");
 const Booking = require("../models/Booking");
 const Counter = require("../models/Counter");
+const { sendBookingEmail } = require("../services/emailService");
 
 // ✅ OPTIMIZATION: Reuse Browser Instance
 const getBrowser = async () => {
@@ -205,6 +206,37 @@ router.post("/generate-pdf", async (req, res) => {
 
     await newBooking.save();
     console.log("✅ Booking Saved to DB");
+
+    // 📧 SEND EMAIL NOTIFICATION (Background Process)
+    // We do not await this to fail the request, but we want to log errors.
+    // However, to ensure the variable scopes are correct, we pass necessary data.
+    // The requirement says: "If email fails, booking + PDF generation must NOT fail."
+    try {
+      const emailData = {
+        bookingId: newBooking.bookingId,
+        guestName: newBooking.guestName,
+        phoneNumber: newBooking.phoneNumber,
+        checkIn: newBooking.checkIn,
+        checkOut: newBooking.checkOut,
+        guests: newBooking.guests,
+        roomType: newBooking.roomType,
+        mealPlan: Array.isArray(newBooking.mealPlan) ? newBooking.mealPlan.join(", ") : (newBooking.mealPlan || "None"),
+        priceFormatted: formatCurrency(newBooking.totalAmount),
+        advanceAmountFormatted: formatCurrency(newBooking.advanceAmount),
+        pendingAmountFormatted: formatCurrency(newBooking.pendingAmount),
+        noOfNights: newBooking.noOfNights,
+        noOfRooms: newBooking.noOfRooms
+      };
+
+      // Fire and forget (or await but catch error so it doesn't throw)
+      // Since function is async, we can just call it given the requirement "Email sending must run in the background"
+      // But usually in Node without a queue, we just await it with a catch to prevent unhandled rejection if we want to be sure it triggers
+      // Or we can just call it.
+      sendBookingEmail(emailData).catch(err => console.error("⚠️ Background Email Failed:", err.message));
+
+    } catch (emailErr) {
+      console.error("⚠️ Email Preparation Failed:", emailErr);
+    }
 
     // 4️⃣ PREPARE DATA FOR PDF
     let pdfTitle = "Booking Confirmation";

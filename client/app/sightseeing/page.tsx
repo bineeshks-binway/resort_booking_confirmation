@@ -37,6 +37,11 @@ export default function SightseeingPage() {
 
     const day2Places: Place[] = [
         {
+            name: "Muthanga Wild Life Safari",
+            description: "A journey into the heart of the wild, where you can spot elephants, tigers, deer, and exotic birds in their natural habitat.",
+            image: "/sightseeing/muthanga.jpg"
+        },
+        {
             name: "Banasura Sagar Dam",
             description: "The largest earthen dam in India and the second largest in Asia, famous for its island-studded reservoir.",
             image: "/sightseeing/banasura-sagar.jpg"
@@ -46,6 +51,17 @@ export default function SightseeingPage() {
             description: "A serene getaway offering kayaking, rock climbing, and zip-lining for adventure enthusiasts.",
             image: "/sightseeing/karlad-lake.webp"
         },
+        {
+            name: "Kanthanpara Waterfalls",
+            description: "A scenic waterfall surrounded by lush greenery, offering a peaceful spot to relax and enjoy nature. Easy access and ideal for photography.",
+            image: "/sightseeing/kanthanpara-waterfalls.jpg"
+        },
+        {
+            name: "900 Kandi View Point",
+            description: "A thrilling hilltop destination featuring a glass bridge and breathtaking valley views. Popular for adventure experiences like zip-lining and off-road jeep rides.",
+            image: "/sightseeing/900-kandi.jpg"
+        },
+
         {
             name: "Lakkidi View Point",
             description: "The gateway to Wayanad, offering a bird’s eye view of the winding Thamarassery ghat roads.",
