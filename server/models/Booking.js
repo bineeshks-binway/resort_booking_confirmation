@@ -68,4 +68,7 @@ const bookingSchema = new mongoose.Schema({
     timestamps: true // Adds createdAt and updatedAt automatically
 });
 
+// Optimization: Index for faster sorting by date
+bookingSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('Booking', bookingSchema);

@@ -22,8 +22,10 @@ interface Booking {
 export default function HistoryPage() {
     const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     // Search Filters
@@ -31,19 +33,54 @@ export default function HistoryPage() {
     const [dateFilter, setDateFilter] = useState('');
 
     useEffect(() => {
-        fetchHistory();
-    }, []);
+        fetchHistory(1, true);
+    }, [searchTerm, dateFilter]);
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (pageNum: number, reset: boolean = false) => {
         try {
-            const res = await api.get('/api/history');
-            setBookings(res.data);
-            setFilteredBookings(res.data);
+            if (reset) setLoading(true);
+            else setLoadingMore(true);
+
+            let newBookings: Booking[] = [];
+            let moreAvailable = false;
+
+            if (searchTerm || dateFilter) {
+                // Use Search API
+                const params = new URLSearchParams();
+                if (searchTerm) params.append('term', searchTerm);
+                if (dateFilter) {
+                    params.append('startDate', dateFilter); // Search API uses startDate/endDate
+                    params.append('endDate', dateFilter);
+                }
+                const res = await api.get(`/api/bookings/search?${params.toString()}`);
+                newBookings = res.data;
+                moreAvailable = false; // Search API currently returns all matches (capped at 100)
+            } else {
+                // Use History Pagination API
+                const res = await api.get(`/api/history?page=${pageNum}&limit=50`);
+                newBookings = res.data.bookings;
+                moreAvailable = res.data.hasMore;
+            }
+
+            if (reset) {
+                setBookings(newBookings);
+                setPage(1);
+            } else {
+                setBookings(prev => [...prev, ...newBookings]);
+                setPage(pageNum);
+            }
+            setHasMore(moreAvailable);
         } catch (error) {
             console.error("Failed to fetch history:", error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
+    };
+
+    const handleLoadMore = () => {
+        if (!hasMore || loadingMore) return;
+        fetchHistory(page + 1, false);
     };
 
     const handleDownloadPDF = async (e: React.MouseEvent, booking: Booking) => {
@@ -72,29 +109,10 @@ export default function HistoryPage() {
     };
 
     // Handle Search & Filter
-    useEffect(() => {
-        let result = bookings;
 
-        if (searchTerm) {
-            const lowerTerm = searchTerm.toLowerCase();
-            result = result.filter(b =>
-                b.guestName.toLowerCase().includes(lowerTerm) ||
-                b.bookingId.toLowerCase().includes(lowerTerm)
-            );
-        }
-
-        if (dateFilter) {
-            // Filter by Created At Date
-            result = result.filter(b =>
-                new Date(b.createdAt).toISOString().split('T')[0] === dateFilter
-            );
-        }
-
-        setFilteredBookings(result);
-    }, [searchTerm, dateFilter, bookings]);
 
     // Group bookings by Date (YYYY-MM-DD -> 10 August 2025)
-    const groupedBookings = filteredBookings.reduce((acc, booking) => {
+    const groupedBookings = bookings.reduce((acc, booking) => {
         const date = new Date(booking.createdAt).toLocaleDateString('en-GB', {
             day: 'numeric', month: 'long', year: 'numeric'
         });
@@ -236,8 +254,25 @@ export default function HistoryPage() {
                             ))
                         )}
                     </div>
+
+                )}
+
+                {/* Load More Button */}
+                {!loading && hasMore && !searchTerm && !dateFilter && (
+                    <div className="flex justify-center mt-8">
+                        <button
+                            onClick={handleLoadMore}
+                            disabled={loadingMore}
+                            className="bg-white border hover:bg-gray-50 text-gray-700 font-semibold py-2 px-6 rounded-lg shadow-sm transition-colors flex items-center"
+                        >
+                            {loadingMore ? (
+                                <span className="animate-spin mr-2">⌛</span>
+                            ) : null}
+                            Load More
+                        </button>
+                    </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
