@@ -5,7 +5,7 @@ import { Input } from './Input';
 import { Select } from './Select';
 import { Button } from './Button';
 import { Card } from './Card';
-import { ArrowRight, Download, Calculator, History, RefreshCw } from 'lucide-react'; // Added History icon
+import { ArrowRight, Download, Calculator, History } from 'lucide-react'; // Added History icon
 import api from '@/lib/api'; // Import centralized API
 import { useRouter } from 'next/navigation'; // Added useRouter
 
@@ -46,28 +46,12 @@ export const BookingForm = () => {
         price: 6500, // Total Amount
         advanceAmount: 0,
         pendingAmount: 6500,
-        bookingId: '',
         bookingStatus: 'CONFIRMED'
     });
 
     const [loading, setLoading] = useState(false);
 
-    // ✅ Fetch Next Booking ID
-    const fetchNextId = async () => {
-        try {
-            const res = await api.get('/api/next-booking-id');
-            if (res.data && res.data.bookingId) {
-                setFormData(prev => ({ ...prev, bookingId: res.data.bookingId }));
-            }
-        } catch (err) {
-            console.error("Failed to fetch next booking ID", err);
-        }
-    };
 
-    // Initial Fetch
-    useEffect(() => {
-        fetchNextId();
-    }, []);
 
     // ✅ Auto Calculation Logic
     useEffect(() => {
@@ -194,34 +178,6 @@ export const BookingForm = () => {
 
             <Card className="w-full max-w-4xl mx-auto" title="New Booking Entry">
                 <form onSubmit={handleGeneratePDF} className="space-y-6">
-
-                    {/* Section 0: Booking ID (Editable, Pre-filled) */}
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <div className="flex items-end gap-2">
-                            <div className="flex-1">
-                                <Input
-                                    label="Booking ID (Auto-suggested)"
-                                    name="bookingId"
-                                    value={formData.bookingId}
-                                    onChange={handleChange}
-                                    placeholder="Loading..."
-                                    className="bg-white font-bold text-blue-800"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={fetchNextId}
-                                title="Refresh Booking ID"
-                                className="mb-[2px] flex items-center gap-2"
-                            >
-                                <RefreshCw className="w-4 h-4" /> Refresh
-                            </Button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            You can edit this manually. If you change it, the system will adapt the sequence for next time.
-                        </p>
-                    </div>
 
                     {/* Section 1: Guest Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

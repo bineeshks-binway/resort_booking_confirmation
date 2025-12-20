@@ -56,18 +56,18 @@ const getNextBookingId = async () => {
   // 1. Find the current highest booking ID in the Booking collection
   const lastBooking = await Booking.findOne().sort({ bookingId: -1 });
 
-  let maxSeqInDb = 990; // Default start
+  let maxSeqInDb = 1000; // Default start
   if (lastBooking && lastBooking.bookingId) {
     // Extract number from WFR000123
     const lastSeq = parseInt(lastBooking.bookingId.replace("WFR", ""), 10);
-    // FIX: Always respect the minimum of 990, even if DB has lower IDs
-    if (!isNaN(lastSeq)) maxSeqInDb = Math.max(990, lastSeq);
+    // FIX: Always respect the minimum of 1000, even if DB has lower IDs
+    if (!isNaN(lastSeq)) maxSeqInDb = Math.max(1000, lastSeq);
   }
 
   // 2. Atomically increment the counter to ensure strict sequence
   // We use findOneAndUpdate to get the fresh counter
   const counter = await Counter.findOne({ id: "bookingId" });
-  let currentCounterSeq = counter ? counter.seq : 990;
+  let currentCounterSeq = counter ? counter.seq : 1000;
 
   // 3. Determine the next sequence
   // It must be greater than both the DB max and the current counter
@@ -145,42 +145,11 @@ router.post("/generate-pdf", async (req, res) => {
 
     console.log(`📝 Processing New Booking for: ${guestName}`);
 
-    // 1️⃣ GENERATE OR USE PROVIDED BOOKING ID
-    let bookingId = req.body.bookingId;
+    // 1️⃣ GENERATE BOOKING ID (SERVER-SIDE ONLY)
+    // Rule: Always generate on backend. Ignore client input.
+    const bookingId = await getNextBookingId();
 
-    // Validate custom ID format if provided (Admin Manual Override)
-    if (bookingId && bookingId.trim() !== "") {
-      // Basic format check (WFR + 6 digits)
-      if (!/^WFR\d{6}$/.test(bookingId)) {
-        return res.status(400).json({ message: "Invalid Booking ID format. Must be 'WFR' followed by 6 digits (e.g., WFR000991)." });
-      }
-
-      // Check for duplicates (Rule 8: Prevent duplicate booking IDs)
-      const existing = await Booking.findOne({ bookingId });
-      if (existing) {
-        // Rule 9: If duplicate bookingId is attempted, throw a clear error
-        return res.status(409).json({ message: `Booking ID ${bookingId} already exists. Please check the ID or leave empty for auto-generation.` });
-      }
-
-      // Rule 6: If admin manually sets bookingId, the next automatic one must be higher
-      const manualSeq = parseInt(bookingId.replace("WFR", ""), 10);
-
-      // Update Counter if manual ID is greater than current sequence
-      // This ensures the NEXT auto-generated ID will be manualSeq + 1
-      await Counter.findOneAndUpdate(
-        { id: "bookingId" },
-        // Only update if manualSeq is greater than current seq (using $max)
-        { $max: { seq: manualSeq } },
-        { upsert: true }
-      );
-      console.log(`🔢 Counter synced to ${manualSeq} (if higher) due to manual override.`);
-
-    } else {
-      // Rule 2 & 7: Auto-generate ONLY on booking creation, based on HIGHEST ID
-      bookingId = await getNextBookingId();
-    }
-
-    console.log(`🆔 Using Booking ID: ${bookingId}`);
+    console.log(`🆔 Generated Booking ID: ${bookingId}`);
 
     // 2️⃣ DETERMINE ROOM IMAGE
     const roomImageFile = getRoomImageFile(roomType); // e.g. "rooms/nalukettu.png"

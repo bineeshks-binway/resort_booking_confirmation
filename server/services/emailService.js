@@ -35,7 +35,7 @@ const sendBookingEmail = async (bookingData) => {
         // Ideally this should be passed in bookingData or config, 
         // but the requirement says "Set email recipient (TO) as: bineeshbinees518@gmail.com"
         // We will validate this hardcoded email too to be safe.
-        let recipientEmail = "bineeshbineesh518@gmail.com";
+        let recipientEmail = "info@wayanadfort.com";
 
         // Sanitize: Trim whitespace
         if (recipientEmail) {
