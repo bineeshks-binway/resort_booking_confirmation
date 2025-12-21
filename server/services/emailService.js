@@ -5,18 +5,19 @@ const path = require("path");
 // Create Transporter
 // Using a single transporter instance for efficiency
 const transporter = nodemailer.createTransport({
-    service: "gmail", // Revert to 'service' for best standard settings, but overload specific network options
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.RESORT_EMAIL,
         pass: process.env.RESORT_EMAIL_APP_PASSWORD,
     },
-    // NETWORK ROBUSTNESS SETTINGS
-    family: 4, // Force IPv4 (Fixes common cloud IPv6 timeouts)
-    connectionTimeout: 60000, // 60s (wait longer for connection)
-    greetingTimeout: 30000, // 30s (wait longer for server hello)
-    socketTimeout: 60000, // 60s (keep socket open)
-    logger: true, // Log internal details to console
-    debug: true   // Include debug info
+    // NETWORK ROBUSTNESS
+    connectionTimeout: 60000, // 60s
+    greetingTimeout: 30000,   // 30s
+    socketTimeout: 60000,     // 60s
+    logger: true,
+    debug: true
 });
 
 // DEBUG: Verify connection configuration on startup
