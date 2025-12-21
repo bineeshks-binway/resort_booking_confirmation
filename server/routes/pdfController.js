@@ -541,17 +541,13 @@ router.get("/next-booking-id", async (req, res) => {
 router.get("/test-email", async (req, res) => {
   // DEBUGGING ALERT: Check loaded credentials safely
   const email = process.env.RESORT_EMAIL || "";
-  const pass = process.env.RESORT_EMAIL_APP_PASSWORD || "";
+  const apiKey = process.env.BREVO_API_KEY || "";
 
   const debugInfo = {
     email_configured: !!email,
-    email_length: email.length,
-    email_has_spaces: /\s/.test(email),
-    pass_configured: !!pass,
-    pass_length: pass.length, // Should be 16 (or 19 with spaces)
-    pass_has_spaces: /\s/.test(pass), // Alerts if spaces exist
-    pass_first_char: pass ? pass[0] : null,
-    pass_last_char: pass ? pass[pass.length - 1] : null
+    brevo_key_configured: !!apiKey,
+    brevo_key_prefix: apiKey ? apiKey.substring(0, 5) + "..." : "MISSING",
+    email_has_spaces: /\s/.test(email)
   };
 
   try {

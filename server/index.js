@@ -35,18 +35,16 @@ app.get('/', (req, res) => {
 app.get('/debug-env', (req, res) => {
     // Check credentials safely
     const email = process.env.RESORT_EMAIL || "";
-    const pass = process.env.RESORT_EMAIL_APP_PASSWORD || "";
+    const apiKey = process.env.BREVO_API_KEY || "";
 
     res.json({
         message: "Server is reachable",
         debug: {
             email_configured: !!email,
             email_length: email.length,
-            pass_configured: !!pass,
-            pass_length: pass.length, // CRITICAL CHECK
-            pass_has_spaces: /\s/.test(pass),
-            pass_first_char: pass ? pass[0] : null,
-            pass_last_char: pass ? pass[pass.length - 1] : null
+            brevo_key_configured: !!apiKey,
+            brevo_key_length: apiKey.length,
+            brevo_key_prefix: apiKey ? apiKey.substring(0, 5) + "..." : null
         }
     });
 });

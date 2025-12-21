@@ -1,42 +1,33 @@
-const nodemailer = require("nodemailer");
 const ejs = require("ejs");
 const path = require("path");
 
-// Create Transporter
-// Using a single transporter instance for efficiency
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Use SSL
-    auth: {
-        user: process.env.RESORT_EMAIL,
-        pass: process.env.RESORT_EMAIL_APP_PASSWORD,
-    },
-    // NETWORK ROBUSTNESS
-    connectionTimeout: 60000, // 60s
-    greetingTimeout: 30000,   // 30s
-    socketTimeout: 60000,     // 60s
-    logger: true,
-    debug: true
-});
+// CONSTANTS
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-// DEBUG: Verify connection configuration on startup
-if (process.env.RESORT_EMAIL) {
-    console.log("📧 Email Service Initializing...");
-    console.log(`📧 User: ${process.env.RESORT_EMAIL}`);
-    console.log("📧 Password Set:", process.env.RESORT_EMAIL_APP_PASSWORD ? "YES (******)" : "NO");
+// Helper: safe fetch wrapper
+const sendToBrevo = async (payload) => {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) {
+        throw new Error("Missing BREVO_API_KEY in environment variables");
+    }
 
-    transporter.verify(function (error, success) {
-        if (error) {
-            console.error("❌ Email Transporter Verification Failed:", error);
-        } else {
-            console.log("✅ Email Server is ready to take our messages");
-        }
+    const response = await fetch(BREVO_API_URL, {
+        method: "POST",
+        headers: {
+            "accept": "application/json",
+            "api-key": apiKey,
+            "content-type": "application/json"
+        },
+        body: JSON.stringify(payload)
     });
-} else {
-    console.warn("⚠️ RESORT_EMAIL environment variable is missing. Email service will not work.");
-}
 
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Brevo API Error (${response.status}): ${errorText}`);
+    }
+
+    return await response.json();
+};
 
 /**
  * Validate Email Address Format
@@ -45,76 +36,72 @@ if (process.env.RESORT_EMAIL) {
  */
 const isValidEmail = (email) => {
     if (!email) return false;
-    // Standard regex for email validation
     const re = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
     return re.test(email);
 };
 
 /**
- * Send Booking Confirmation Email
+ * Send Booking Confirmation Email via Brevo
  * @param {Object} bookingData - The booking details
  */
 const sendBookingEmail = async (bookingData) => {
+    let recipientEmail = "info@wayanadfort.com"; // Default receiver
+    // Optional: Allow overriding via env (though requirement says configurable string variable, likely meaning hardcoded here or Env)
+    // We'll stick to fixed string or env if present to be safe
+    if (process.env.RESORT_NOTIFICATION_EMAIL) {
+        recipientEmail = process.env.RESORT_NOTIFICATION_EMAIL;
+    }
+
+    // Sender details
+    // Requirement: Sender name: "Wayanad Fort Resort"
+    // Requirement: Sender email: configurable
+    // We use RESORT_EMAIL as the 'From' address.
+    const senderEmail = process.env.RESORT_EMAIL;
+
     try {
-        // 1. SANITIZATION & VALIDATION
-        // Determine the recipient email.
-        // Ideally this should be passed in bookingData or config, 
-        // but the requirement says "Set email recipient (TO) as: bineeshbinees518@gmail.com"
-        // We will validate this hardcoded email too to be safe.
-        let recipientEmail = "info@wayanadfort.com";
-
-        // Sanitize: Trim whitespace
-        if (recipientEmail) {
-            recipientEmail = recipientEmail.trim();
-        }
-
-        console.log(`📨 Preparing to send booking email to: '${recipientEmail}'`);
-
-        // Validate: Check format
-        if (!isValidEmail(recipientEmail)) {
-            console.warn(`⚠️ SKIPPING EMAIL: Invalid recipient email address format: '${recipientEmail}'`);
-            return null; // Gracefully return without erroring
-        }
-
-        const senderEmail = process.env.RESORT_EMAIL;
+        // 1. Validation
         if (!senderEmail) {
             console.warn("⚠️ SKIPPING EMAIL: Missing RESORT_EMAIL environment variable.");
             return null;
         }
 
-        // 2. TEMPLATE RENDERING
+        console.log(`📨 Preparing to send booking email to: '${recipientEmail}' via Brevo`);
+
+        // Render Template
         const templatePath = path.join(__dirname, "../templates/booking-email.ejs");
         const emailHtml = await ejs.renderFile(templatePath, bookingData);
 
-        // 3. SEND EMAIL
-        const mailOptions = {
-            from: `"Wayanad Fort Resort" <${senderEmail}>`,
-            to: recipientEmail,
+        // 2. Prepare Payload
+        const payload = {
+            sender: {
+                name: "Wayanad Fort Resort",
+                email: senderEmail
+            },
+            to: [
+                {
+                    email: recipientEmail,
+                    name: "Resort Admin"
+                }
+            ],
             subject: `New Booking Confirmed: ${bookingData.bookingId} - ${bookingData.guestName}`,
-            html: emailHtml,
+            htmlContent: emailHtml
         };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log("✅ Booking email sent successfully:", info.messageId);
-        return info;
+        // 3. Send
+        const result = await sendToBrevo(payload);
+        console.log("✅ Booking email sent successfully via Brevo:", result.messageId);
+        return result;
 
     } catch (error) {
-        // 4. ERROR HANDLING
-        // Log the full error but do not throw, ensuring booking flow continues
-        console.error("❌ Email sending failed for:", recipientEmail);
-        console.error("   Error Message:", error.message);
-        if (error.response) {
-            console.error("   SMTP Response:", error.response);
-        }
-        if (error.code) {
-            console.error("   Error Code:", error.code);
-        }
+        // Non-blocking error handling
+        console.error("❌ Email sending failed (Brevo):");
+        console.error("   Message:", error.message);
+        // We do not throw, so booking flow proceeds
     }
 };
 
-
 /**
- * Send Test Email (Plain Text)
+ * Send Test Email (Brevo)
  * @returns {Promise<Object>}
  */
 const sendTestEmail = async (customRecipient) => {
@@ -123,14 +110,39 @@ const sendTestEmail = async (customRecipient) => {
 
     const recipient = customRecipient || senderEmail;
 
-    const mailOptions = {
-        from: `"Wayanad Fort Resort Debug" <${senderEmail}>`,
-        to: recipient,
-        subject: "Test Email from Server Route",
-        text: `This is a test email triggered from the /api/test-email endpoint.\n\nSent FROM: ${senderEmail}\nSent TO: ${recipient}\n\nIf you see this, email sending is WORKING!`
+    // Simple HTML content for test
+    const htmlContent = `
+        <html>
+        <body>
+            <h1>Test Email from Resort Server (Brevo API)</h1>
+            <p>This is a test email triggered from the <code>/api/test-email</code> endpoint.</p>
+            <ul>
+                <li><strong>Source:</strong> Brevo REST API</li>
+                <li><strong>Sender:</strong> ${senderEmail}</li>
+                <li><strong>Recipient:</strong> ${recipient}</li>
+                <li><strong>Time:</strong> ${new Date().toISOString()}</li>
+            </ul>
+            <p style="color: green; font-weight: bold;">If you see this, email integration is WORKING!</p>
+        </body>
+        </html>
+    `;
+
+    const payload = {
+        sender: {
+            name: "Wayanad Fort Resort Debug",
+            email: senderEmail
+        },
+        to: [
+            {
+                email: recipient,
+                name: "Test User"
+            }
+        ],
+        subject: "Test Email from Brevo API",
+        htmlContent: htmlContent
     };
 
-    return await transporter.sendMail(mailOptions);
+    return await sendToBrevo(payload);
 };
 
 module.exports = { sendBookingEmail, sendTestEmail };
