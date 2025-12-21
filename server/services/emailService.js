@@ -6,13 +6,16 @@ const path = require("path");
 // Using a single transporter instance for efficiency
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Use SSL
+    port: 587,
+    secure: false, // Use STARTTLS
     auth: {
         user: process.env.RESORT_EMAIL,
         pass: process.env.RESORT_EMAIL_APP_PASSWORD,
     },
-    connectionTimeout: 10000, // Fail fast if blocked
+    tls: {
+        rejectUnauthorized: false // Optional: help with self-signed certs if needed
+    },
+    connectionTimeout: 10000,
 });
 
 // DEBUG: Verify connection configuration on startup
