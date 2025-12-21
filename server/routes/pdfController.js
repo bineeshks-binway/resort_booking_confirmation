@@ -170,6 +170,13 @@ router.post("/generate-pdf", async (req, res) => {
     }
     // If guests is alrady an object from frontend, use it.
 
+    // 🔒 BACKEND VALIDATION: Check Dates
+    const startDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
+    if (endDate <= startDate) {
+      return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
+    }
+
     console.log(`📝 Processing New Booking for: ${guestName}`);
 
     // 1️⃣ GENERATE BOOKING ID (SERVER-SIDE ONLY)
@@ -459,6 +466,29 @@ router.put("/booking/:id", async (req, res) => {
     delete updates._id;
     delete updates.bookingId; // key requirement: ID never changes
     delete updates.createdAt;
+
+    // 🔒 BACKEND VALIDATION: Check Dates if both are present in updates
+    if (updates.checkIn && updates.checkOut) {
+      const startDate = new Date(updates.checkIn);
+      const endDate = new Date(updates.checkOut);
+      if (endDate <= startDate) {
+        return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
+      }
+    } else if ((updates.checkIn && !updates.checkOut) || (!updates.checkIn && updates.checkOut)) {
+      // If only one is being updated, we really should fetch the other to validate.
+      // However, this simple check covers the most common "full update" scenario from the form.
+      // For now, let's assume the frontend sends the whole object or be safe.
+      // If we want to be 100% safe we'd fetch the existing booking.
+      // Let's implement full safety.
+      const existing = await Booking.findOne({ bookingId: id });
+      if (existing) {
+        const newCheckIn = updates.checkIn ? new Date(updates.checkIn) : new Date(existing.checkIn);
+        const newCheckOut = updates.checkOut ? new Date(updates.checkOut) : new Date(existing.checkOut);
+        if (newCheckOut <= newCheckIn) {
+          return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
+        }
+      }
+    }
 
     // If updating guest count or room details, we might need to recalculate price?
     // For now, we assume frontend provides the correct new price if changed.

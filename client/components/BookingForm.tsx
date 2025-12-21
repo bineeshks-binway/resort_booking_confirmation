@@ -130,11 +130,29 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
     }, [formData.price, formData.advanceAmount]);
 
 
+    // Helper to get today's date in YYYY-MM-DD
+    const getTodayDate = () => new Date().toISOString().split('T')[0];
+
+    // Helper to get next day of a given date
+    const getNextDay = (dateStr: string) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() + 1);
+        return date.toISOString().split('T')[0];
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
 
         setFormData(prev => {
             let newVal: any = value;
+            const updates: any = {};
+
+            // Handle Check-in Logic
+            if (name === 'checkIn') {
+                updates.checkOut = ''; // Reset checkout when checkin changes
+                // If the new check-in is after the current check-out (logic handled by clearing, but good to note)
+            }
 
             // Handle Numeric Fields: Rooms, Nights, Price, Advance
             if (['noOfRooms', 'noOfNights', 'price', 'advanceAmount'].includes(name)) {
@@ -151,7 +169,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                 }
             }
 
-            return { ...prev, [name]: newVal };
+            return { ...prev, [name]: newVal, ...updates };
         });
     };
 
@@ -319,6 +337,8 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                             name="checkIn"
                             value={formData.checkIn}
                             onChange={handleChange}
+                            min={getTodayDate()}
+                            onKeyDown={(e) => e.preventDefault()} // Prevent manual typing
                             required
                         />
                         <Input
@@ -327,6 +347,9 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                             name="checkOut"
                             value={formData.checkOut}
                             onChange={handleChange}
+                            min={formData.checkIn ? getNextDay(formData.checkIn) : getTodayDate()}
+                            onKeyDown={(e) => e.preventDefault()} // Prevent manual typing
+                            disabled={!formData.checkIn} // Optional: force check-in selection first
                             required
                         />
                         <Input
