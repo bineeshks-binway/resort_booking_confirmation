@@ -5,11 +5,14 @@ const path = require("path");
 // Create Transporter
 // Using a single transporter instance for efficiency
 const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.RESORT_EMAIL,
         pass: process.env.RESORT_EMAIL_APP_PASSWORD,
     },
+    connectionTimeout: 10000, // Fail fast if blocked
 });
 
 // DEBUG: Verify connection configuration on startup
