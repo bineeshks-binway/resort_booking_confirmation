@@ -539,6 +539,21 @@ router.get("/next-booking-id", async (req, res) => {
 // 🚀 API 6: TEST EMAIL
 // ==========================================
 router.get("/test-email", async (req, res) => {
+  // DEBUGGING ALERT: Check loaded credentials safely
+  const email = process.env.RESORT_EMAIL || "";
+  const pass = process.env.RESORT_EMAIL_APP_PASSWORD || "";
+
+  const debugInfo = {
+    email_configured: !!email,
+    email_length: email.length,
+    email_has_spaces: /\s/.test(email),
+    pass_configured: !!pass,
+    pass_length: pass.length, // Should be 16 (or 19 with spaces)
+    pass_has_spaces: /\s/.test(pass), // Alerts if spaces exist
+    pass_first_char: pass ? pass[0] : null,
+    pass_last_char: pass ? pass[pass.length - 1] : null
+  };
+
   try {
     const { sendTestEmail } = require("../services/emailService");
     const recipient = req.query.to; // Allow ?to=user@gmail.com
@@ -546,11 +561,18 @@ router.get("/test-email", async (req, res) => {
     res.json({
       message: "Test email sent successfully",
       recipient: recipient || "Same as Sender",
-      messageId: info.messageId
+      messageId: info.messageId,
+      debug: debugInfo
     });
   } catch (error) {
     console.error("Test email failed:", error);
-    res.status(500).json({ message: "Test email failed", error: error.message, stack: error.stack });
+    res.status(500).json({
+      message: "Test email failed",
+      error: error.message,
+      errorCode: error.code,
+      response: error.response,
+      debug: debugInfo // Return debug info even on failure
+    });
   }
 });
 
