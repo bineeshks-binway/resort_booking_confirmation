@@ -130,13 +130,22 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
     }, [formData.price, formData.advanceAmount]);
 
 
-    // Helper to get today's date in YYYY-MM-DD
-    const getTodayDate = () => new Date().toISOString().split('T')[0];
+    // Helper to get today's date in YYYY-MM-DD (Local Time)
+    const getTodayDate = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-    // Helper to get next day of a given date
+    // Helper to get next day of a given date (Handles string input safely)
     const getNextDay = (dateStr: string) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
+        // Date(dateStr) parses as UTC for YYYY-MM-DD.
+        // Adding 24 hours keeps it UTC. toISOString returns UTC.
+        // This is safe for "next calendar day".
         date.setDate(date.getDate() + 1);
         return date.toISOString().split('T')[0];
     };
@@ -151,7 +160,6 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
             // Handle Check-in Logic
             if (name === 'checkIn') {
                 updates.checkOut = ''; // Reset checkout when checkin changes
-                // If the new check-in is after the current check-out (logic handled by clearing, but good to note)
             }
 
             // Handle Numeric Fields: Rooms, Nights, Price, Advance
@@ -343,6 +351,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                         />
                         <Input
                             label="Check-Out"
+                            key={formData.checkIn || 'checklist-out'} // Force re-render to update min date on mobile
                             type="date"
                             name="checkOut"
                             value={formData.checkOut}
