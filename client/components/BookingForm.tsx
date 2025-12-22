@@ -130,7 +130,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
     }, [formData.price, formData.advanceAmount]);
 
 
-    // Helper to get today's date in YYYY-MM-DD (Local Time)
+    // Helper to get today's date in YYYY-MM-DD (Local Time Coverage)
     const getTodayDate = () => {
         const d = new Date();
         const year = d.getFullYear();
@@ -143,11 +143,14 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
     const getNextDay = (dateStr: string) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
-        // Date(dateStr) parses as UTC for YYYY-MM-DD.
-        // Adding 24 hours keeps it UTC. toISOString returns UTC.
-        // This is safe for "next calendar day".
+        // Add 1 day
         date.setDate(date.getDate() + 1);
-        return date.toISOString().split('T')[0];
+
+        // Format back to YYYY-MM-DD
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -160,6 +163,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
             // Handle Check-in Logic
             if (name === 'checkIn') {
                 updates.checkOut = ''; // Reset checkout when checkin changes
+                // updates.noOfNights = '1'; // Optional: Reset nights?
             }
 
             // Handle Numeric Fields: Rooms, Nights, Price, Advance
@@ -347,20 +351,30 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                             onChange={handleChange}
                             min={getTodayDate()}
                             onKeyDown={(e) => e.preventDefault()} // Prevent manual typing
+                            onClick={(e) => (e.target as HTMLInputElement).showPicker?.()} // Auto-open picker on click (Desktop/some mobile)
                             required
                         />
-                        <Input
-                            label="Check-Out"
-                            key={formData.checkIn || 'checklist-out'} // Force re-render to update min date on mobile
-                            type="date"
-                            name="checkOut"
-                            value={formData.checkOut}
-                            onChange={handleChange}
-                            min={formData.checkIn ? getNextDay(formData.checkIn) : getTodayDate()}
-                            onKeyDown={(e) => e.preventDefault()} // Prevent manual typing
-                            disabled={!formData.checkIn} // Optional: force check-in selection first
-                            required
-                        />
+                        <div className="relative">
+                            <Input
+                                label="Check-Out"
+                                // CRITICAL: Key forces React to re-mount input when min date changes.
+                                // This forces mobile browsers to re-evaluate the 'min' attribute.
+                                key={formData.checkIn ? `checkout-${formData.checkIn}` : 'checkout-disabled'}
+                                type="date"
+                                name="checkOut"
+                                value={formData.checkOut}
+                                onChange={handleChange}
+                                min={formData.checkIn ? getNextDay(formData.checkIn) : ''}
+                                onKeyDown={(e) => e.preventDefault()} // Prevent manual typing
+                                onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                                disabled={!formData.checkIn} // Disable until check-in selected
+                                className={!formData.checkIn ? "bg-gray-100 cursor-not-allowed opacity-60" : ""}
+                                required
+                            />
+                            {!formData.checkIn && (
+                                <div className="absolute inset-0 bg-transparent z-10 cursor-not-allowed" title="Select Check-In first" />
+                            )}
+                        </div>
                         <Input
                             label="Nights"
                             type="text"
