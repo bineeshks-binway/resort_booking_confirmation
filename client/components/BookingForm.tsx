@@ -355,11 +355,18 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                             required
                         />
                         <div className="relative">
+                            {/* 
+                                📱 iOS SAFARI CRITICAL FIX:
+                                iOS Safari has a known bug/behavior where the 'min' attribute on <input type="date">
+                                is NOT re-evaluated if the input is already in the DOM.
+                                
+                                To fix this, we use the `key` prop to FORCE React to destroy and recreate 
+                                the entire input element whenever the `checkIn` date changes.
+                                This ensures the new input is created with the correct `min` date allowed from the start.
+                            */}
                             <Input
                                 label="Check-Out"
-                                // CRITICAL: Key forces React to re-mount input when min date changes.
-                                // This forces mobile browsers to re-evaluate the 'min' attribute.
-                                key={formData.checkIn ? `checkout-${formData.checkIn}` : 'checkout-disabled'}
+                                key={formData.checkIn ? `checkout-active-${formData.checkIn}` : 'checkout-disabled-state'}
                                 type="date"
                                 name="checkOut"
                                 value={formData.checkOut}
@@ -372,7 +379,11 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                                 required
                             />
                             {!formData.checkIn && (
-                                <div className="absolute inset-0 bg-transparent z-10 cursor-not-allowed" title="Select Check-In first" />
+                                <div
+                                    className="absolute inset-0 bg-transparent z-10 cursor-not-allowed"
+                                    title="Please select a Check-In date first"
+                                    onClick={() => alert("Please select a Check-In date first.")}
+                                />
                             )}
                         </div>
                         <Input
