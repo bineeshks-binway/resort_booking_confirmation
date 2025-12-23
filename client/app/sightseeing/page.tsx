@@ -27,17 +27,30 @@ export default function SightseeingPage() {
             description: "A naturally formed skull-shaped rock formation that offers spectacular views of the surrounding landscape.",
             image: "/sightseeing/phantom-rock.jpg"
         },
+
+        {
+            name: "900 Kandi View Point",
+            description: "A thrilling hilltop destination featuring a glass bridge and breathtaking valley views. Popular for adventure experiences like zip-lining and off-road jeep rides.",
+            image: "/sightseeing/900kandi.jpg"
+        },
+
+        {
+            name: "Kanthanpara Waterfalls",
+            description: "A scenic waterfall surrounded by lush greenery, offering a peaceful spot to relax and enjoy nature. Easy access and ideal for photography.",
+            image: "/sightseeing/kanthanpara-water-falls.webp"
+        },
+
         {
             name: "Karapuzha Dam",
             description: "India's largest earth dam, featuring a beautiful garden and adventure activities like zip-lining.",
             image: "/sightseeing/Karapuzha-Dam.jpg"
-        },
+        }
 
     ];
 
     const day2Places: Place[] = [
         {
-            name: "Muthanga Wild Life Safari",
+            name: "Muthanga Wild Life Safari (early morning)",
             description: "A journey into the heart of the wild, where you can spot elephants, tigers, deer, and exotic birds in their natural habitat.",
             image: "/sightseeing/muthanga.jpg"
         },
@@ -51,21 +64,11 @@ export default function SightseeingPage() {
             description: "A serene getaway offering kayaking, rock climbing, and zip-lining for adventure enthusiasts.",
             image: "/sightseeing/karlad-lake.webp"
         },
-        {
-            name: "Kanthanpara Waterfalls",
-            description: "A scenic waterfall surrounded by lush greenery, offering a peaceful spot to relax and enjoy nature. Easy access and ideal for photography.",
-            image: "/sightseeing/kanthanpara-water-falls.webp"
-        },
-        {
-            name: "900 Kandi View Point",
-            description: "A thrilling hilltop destination featuring a glass bridge and breathtaking valley views. Popular for adventure experiences like zip-lining and off-road jeep rides.",
-            image: "/sightseeing/900kandi.jpg"
-        },
 
         {
-            name: "Lakkidi View Point",
-            description: "The gateway to Wayanad, offering a bird’s eye view of the winding Thamarassery ghat roads.",
-            image: "/sightseeing/lakkidi-view-point.jpg"
+            name: "En Ooru (Tribal Heritage Village)",
+            description: "A showcase of Wayanad's tribal heritage, featuring traditional architecture, art, and ethnic cuisine.",
+            image: "/sightseeing/En-Ooru.jpg"
         },
         {
             name: "Pookode Lake",
@@ -73,10 +76,12 @@ export default function SightseeingPage() {
             image: "/sightseeing/pookode-lake.jpg"
         },
         {
-            name: "En Ooru (Tribal Heritage Village)",
-            description: "A showcase of Wayanad's tribal heritage, featuring traditional architecture, art, and ethnic cuisine.",
-            image: "/sightseeing/En-Ooru.jpg"
+            name: "Lakkidi View Point",
+            description: "The gateway to Wayanad, offering a bird’s eye view of the winding Thamarassery ghat roads.",
+            image: "/sightseeing/lakkidi-view-point.jpg"
         },
+
+
         // Placeholder for grid balance if needed, or stick to 5
     ];
 

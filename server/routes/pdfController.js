@@ -143,20 +143,21 @@ router.post("/generate-pdf", async (req, res) => {
       phoneNumber,
       checkIn,
       checkOut,
-      guests, // Can be object or number
-      adults, // Optional input if not sending 'guests' object directly
-      children, // Optional input
-      roomType,
+      guests,
+      adults,
+      children,
+      rooms, // 🚀 NEW: Array of rooms
+      roomType, // Legacy/Summary
+      noOfRooms, // Legacy/Summary
       mealPlan,
       price,
       advanceAmount,
       pendingAmount,
-      noOfRooms,
       noOfNights,
-      bookingStatus = "CONFIRMED" // Default status
+      bookingStatus = "CONFIRMED"
     } = req.body;
 
-    // Normalize Guests Data
+    // Normalize Guests
     let finalGuests = guests;
     if (adults || children) {
       finalGuests = {
@@ -164,11 +165,8 @@ router.post("/generate-pdf", async (req, res) => {
         children: Number(children || 0)
       };
     } else if (typeof guests === 'number') {
-      // If frontend sends number, keep it (legacy compatibility)
-      // Or strictly convert? Let's allow flexibility.
       finalGuests = guests;
     }
-    // If guests is alrady an object from frontend, use it.
 
     // 🔒 BACKEND VALIDATION: Check Dates
     const startDate = new Date(checkIn);
@@ -177,16 +175,31 @@ router.post("/generate-pdf", async (req, res) => {
       return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
     }
 
+    // 🔒 BACKEND VALIDATION: Rooms
+    let finalRooms = rooms;
+    if (!finalRooms || !Array.isArray(finalRooms) || finalRooms.length === 0) {
+      // Create single room entry from legacy fields if rooms array missing
+      if (roomType) {
+        finalRooms = [{
+          roomType: roomType,
+          quantity: Number(noOfRooms || 1),
+          price: Number(price || 0) / Number(noOfRooms || 1), // Estimate unit price
+          subtotal: Number(price || 0)
+        }];
+      } else {
+        return res.status(400).json({ message: "At least one room is required." });
+      }
+    }
+
     console.log(`📝 Processing New Booking for: ${guestName}`);
 
-    // 1️⃣ GENERATE BOOKING ID (SERVER-SIDE ONLY)
-    // Rule: Always generate on backend. Ignore client input.
+    // 1️⃣ GENERATE BOOKING ID
     const bookingId = await getNextBookingId();
-
     console.log(`🆔 Generated Booking ID: ${bookingId}`);
 
-    // 2️⃣ DETERMINE ROOM IMAGE
-    const roomImageFile = getRoomImageFile(roomType); // e.g. "rooms/nalukettu.png"
+    // 2️⃣ DETERMINE MAIN IMAGE (Use first room's type)
+    const primaryRoomType = finalRooms[0].roomType;
+    const roomImageFile = getRoomImageFile(primaryRoomType);
 
     // 3️⃣ SAVE TO DATABASE
     const newBooking = new Booking({
@@ -196,13 +209,14 @@ router.post("/generate-pdf", async (req, res) => {
       checkIn,
       checkOut,
       guests: finalGuests,
-      roomType,
+      rooms: finalRooms, // Save the array
+      roomType: finalRooms.map(r => r.roomType).join(", "), // Summary string
+      noOfRooms: finalRooms.reduce((sum, r) => sum + r.quantity, 0), // Total count
       roomImage: roomImageFile,
       mealPlan: Array.isArray(mealPlan) ? mealPlan : (mealPlan ? [mealPlan] : []),
       totalAmount: price,
       advanceAmount,
       pendingAmount,
-      noOfRooms,
       noOfNights,
       bookingStatus
     });
@@ -210,10 +224,7 @@ router.post("/generate-pdf", async (req, res) => {
     await newBooking.save();
     console.log("✅ Booking Saved to DB");
 
-    // 📧 SEND EMAIL NOTIFICATION (Background Process)
-    // We do not await this to fail the request, but we want to log errors.
-    // However, to ensure the variable scopes are correct, we pass necessary data.
-    // The requirement says: "If email fails, booking + PDF generation must NOT fail."
+    // 📧 SEND EMAIL NOTIFICATION
     try {
       const emailData = {
         bookingId: newBooking.bookingId,
@@ -221,20 +232,20 @@ router.post("/generate-pdf", async (req, res) => {
         phoneNumber: newBooking.phoneNumber,
         checkIn: newBooking.checkIn,
         checkOut: newBooking.checkOut,
-        guests: formatGuests(newBooking.guests), // Format for Email
+        guests: formatGuests(newBooking.guests),
+        // Pass rooms array to email template
+        rooms: newBooking.rooms,
+        // Legacy fallbacks for template safety
         roomType: newBooking.roomType,
+        noOfRooms: newBooking.noOfRooms,
+
         mealPlan: Array.isArray(newBooking.mealPlan) ? newBooking.mealPlan.join(", ") : (newBooking.mealPlan || "None"),
         priceFormatted: formatCurrency(newBooking.totalAmount),
         advanceAmountFormatted: formatCurrency(newBooking.advanceAmount),
         pendingAmountFormatted: formatCurrency(newBooking.pendingAmount),
-        noOfNights: newBooking.noOfNights,
-        noOfRooms: newBooking.noOfRooms
+        noOfNights: newBooking.noOfNights
       };
 
-      // Fire and forget (or await but catch error so it doesn't throw)
-      // Since function is async, we can just call it given the requirement "Email sending must run in the background"
-      // But usually in Node without a queue, we just await it with a catch to prevent unhandled rejection if we want to be sure it triggers
-      // Or we can just call it.
       sendBookingEmail(emailData).catch(err => console.error("⚠️ Background Email Failed:", err.message));
 
     } catch (emailErr) {
@@ -261,10 +272,17 @@ router.post("/generate-pdf", async (req, res) => {
       phoneNumber: newBooking.phoneNumber,
       checkIn: newBooking.checkIn,
       checkOut: newBooking.checkOut,
-      guests: formatGuests(newBooking.guests), // Format for PDF
-      noOfRooms: newBooking.noOfRooms || 1,
-      noOfNights: newBooking.noOfNights || 1,
+      guests: formatGuests(newBooking.guests),
+      guestDetails: newBooking.guests, // 🚀 Pass raw object for safer EJS logic
+
+      // Multi-room support
+      rooms: newBooking.rooms,
+
+      // Legacy/Summary for templates not yet updated or header display
+      noOfRooms: newBooking.noOfRooms,
       roomType: newBooking.roomType,
+
+      noOfNights: newBooking.noOfNights || 1,
       mealPlan: mealPlanDisplay,
       price: newBooking.totalAmount || 0,
       priceFormatted: formatCurrency(newBooking.totalAmount),
@@ -277,7 +295,7 @@ router.post("/generate-pdf", async (req, res) => {
       pdfTitle,
       qrCodeData,
       logoData,
-      roomImages: [roomImageData, roomImageData, roomImageData] // Send array for Main + 2 Sub images
+      roomImages: [roomImageData, roomImageData, roomImageData]
     };
 
     // 5️⃣ GENERATE PDF
@@ -287,7 +305,6 @@ router.post("/generate-pdf", async (req, res) => {
     browser = await getBrowser();
     page = await browser.newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 60000 });
-    // await page.waitForSelector("img"); // Removed: Template uses CSS/Text only now
 
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -297,23 +314,16 @@ router.post("/generate-pdf", async (req, res) => {
 
     console.log("✅ PDF Generated successfully");
 
-    // Send PDF
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="booking_${guestName.replace(/\s+/g, '_')}_${bookingId}.pdf"`,
-      "X-Booking-Id": bookingId // Send ID in header if needed by client
+      "X-Booking-Id": bookingId
     });
 
     res.send(pdfBuffer);
 
   } catch (error) {
     console.error("❌ Booking/PDF Error:", error);
-    if (error.message.includes('Protocol error') || error.message.includes('Target closed')) {
-      if (browserInstance) {
-        await browserInstance.close().catch(() => { });
-        browserInstance = null;
-      }
-    }
     res.status(500).json({ message: "Booking Processing Failed", error: error.message });
   } finally {
     if (page) await page.close().catch(err => console.error("Error closing page:", err));
@@ -338,9 +348,13 @@ router.get("/booking/:id/pdf", async (req, res) => {
     const locationMappingUrl = "https://maps.app.goo.gl/ur6zxHXigwetPq74A";
     const qrCodeData = await QRCode.toDataURL(locationMappingUrl);
     const logoData = getImageAsBase64("logo.png");
-    // const roomImageFile = getRoomImageFile(booking.roomType); // Use stored path if reliable
-    // Use stored roomImage if available, else derive it
-    const roomImageData = getImageAsBase64(booking.roomImage || getRoomImageFile(booking.roomType));
+
+    // Determine image (use first room if rooms array exists)
+    let roomTypeForImage = booking.roomType;
+    if (booking.rooms && booking.rooms.length > 0) {
+      roomTypeForImage = booking.rooms[0].roomType;
+    }
+    const roomImageData = getImageAsBase64(booking.roomImage || getRoomImageFile(roomTypeForImage));
 
     let pdfTitle = "Booking Confirmation";
     if (booking.bookingStatus === "PENDING") pdfTitle = "Booking Request";
@@ -351,15 +365,32 @@ router.get("/booking/:id/pdf", async (req, res) => {
       mealPlanDisplay = booking.mealPlan.join(" | ");
     }
 
+    // Ensure 'rooms' array availability for older bookings
+    let roomsData = booking.rooms;
+    if (!roomsData || roomsData.length === 0) {
+      // Construct from legacy
+      roomsData = [{
+        roomType: booking.roomType,
+        quantity: booking.noOfRooms,
+        price: booking.totalAmount / booking.noOfRooms, // approx
+        subtotal: booking.totalAmount // approximation since we don't know detailed split
+      }];
+    }
+
     const data = {
       guestName: booking.guestName,
       phoneNumber: booking.phoneNumber,
       checkIn: booking.checkIn,
       checkOut: booking.checkOut,
-      guests: formatGuests(booking.guests), // Format for PDF
+      guests: formatGuests(booking.guests),
+      guestDetails: booking.guests, // 🚀 Pass raw object for safer EJS logic
+
+      // Rooms
+      rooms: roomsData,
       noOfRooms: booking.noOfRooms || 1,
-      noOfNights: booking.noOfNights || 1,
       roomType: booking.roomType,
+
+      noOfNights: booking.noOfNights || 1,
       mealPlan: mealPlanDisplay,
       price: booking.totalAmount || 0,
       priceFormatted: formatCurrency(booking.totalAmount),
@@ -370,7 +401,7 @@ router.get("/booking/:id/pdf", async (req, res) => {
       bookingId: booking.bookingId,
       qrCodeData,
       logoData,
-      roomImages: [roomImageData, roomImageData, roomImageData], // Send array for Main + 2 Sub images
+      roomImages: [roomImageData, roomImageData, roomImageData],
       bookingStatus: booking.bookingStatus,
       pdfTitle
     };
@@ -381,7 +412,6 @@ router.get("/booking/:id/pdf", async (req, res) => {
     browser = await getBrowser();
     page = await browser.newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 60000 });
-    // await page.waitForSelector("img"); // Removed: Template uses CSS/Text only now
 
     const pdfBuffer = await page.pdf({
       format: "A4",
@@ -454,9 +484,6 @@ router.get("/booking/:id", async (req, res) => {
 // ==========================================
 // 🚀 API 3.5: UPDATE BOOKING
 // ==========================================
-// ==========================================
-// 🚀 API 3.5: UPDATE BOOKING
-// ==========================================
 router.put("/booking/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -464,41 +491,27 @@ router.put("/booking/:id", async (req, res) => {
 
     // 🔒 SECURITY: Prevent changing Immutable Fields
     delete updates._id;
-    delete updates.bookingId; // key requirement: ID never changes
+    delete updates.bookingId;
     delete updates.createdAt;
 
-    // 🔒 BACKEND VALIDATION: Check Dates if both are present in updates
+    // 🔒 BACKEND VALIDATION: Check Dates
     if (updates.checkIn && updates.checkOut) {
-      const startDate = new Date(updates.checkIn);
-      const endDate = new Date(updates.checkOut);
-      if (endDate <= startDate) {
+      if (new Date(updates.checkOut) <= new Date(updates.checkIn)) {
         return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
-      }
-    } else if ((updates.checkIn && !updates.checkOut) || (!updates.checkIn && updates.checkOut)) {
-      // If only one is being updated, we really should fetch the other to validate.
-      // However, this simple check covers the most common "full update" scenario from the form.
-      // For now, let's assume the frontend sends the whole object or be safe.
-      // If we want to be 100% safe we'd fetch the existing booking.
-      // Let's implement full safety.
-      const existing = await Booking.findOne({ bookingId: id });
-      if (existing) {
-        const newCheckIn = updates.checkIn ? new Date(updates.checkIn) : new Date(existing.checkIn);
-        const newCheckOut = updates.checkOut ? new Date(updates.checkOut) : new Date(existing.checkOut);
-        if (newCheckOut <= newCheckIn) {
-          return res.status(400).json({ message: "Check-out date must be strictly after check-in date." });
-        }
       }
     }
 
-    // If updating guest count or room details, we might need to recalculate price?
-    // For now, we assume frontend provides the correct new price if changed.
-    // Ideally, we should recalculate here to be safe, but adhering to "don't break existing logic"
-    // and trusting the form data which contains the calculated price.
+    // 🚀 Handle Rooms Update
+    // If rooms key is present, also update legacy summary fields
+    if (updates.rooms && Array.isArray(updates.rooms)) {
+      updates.roomType = updates.rooms.map(r => r.roomType).join(", ");
+      updates.noOfRooms = updates.rooms.reduce((acc, r) => acc + r.quantity, 0);
+    }
 
     const booking = await Booking.findOneAndUpdate(
       { bookingId: id },
       { $set: updates },
-      { new: true } // Return updated doc
+      { new: true }
     );
 
     if (!booking) {

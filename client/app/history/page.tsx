@@ -15,6 +15,7 @@ interface Booking {
     checkOut: string;
     guests: number | { adults: number; children: number };
     roomType: string;
+    rooms?: any[];
     totalAmount: number;
     createdAt: string;
 }
@@ -206,7 +207,10 @@ export default function HistoryPage() {
                                                                 <div className="text-xs text-gray-500">Out: {new Date(booking.checkOut).toLocaleDateString('en-GB')}</div>
                                                             </td>
                                                             <td className="p-4">
-                                                                <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-semibold border border-green-200">
+                                                                <span
+                                                                    className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-semibold border border-green-200 inline-block max-w-[200px] truncate align-middle"
+                                                                    title={booking.roomType}
+                                                                >
                                                                     {booking.roomType}
                                                                 </span>
                                                             </td>

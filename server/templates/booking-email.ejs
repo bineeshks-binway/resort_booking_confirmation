@@ -153,15 +153,35 @@
                 </div>
             </div>
 
-            <!-- Stay Details -->
-            <div class="section-title">Stay Details</div>
+            <!-- Room Details -->
+            <div class="section-title">Room Details</div>
             <div class="grid">
-                <div class="row">
-                    <div class="label">Room Type</div>
-                    <div class="value">
-                        <%= roomType %>
+                <% if (rooms && rooms.length> 0) {
+                    rooms.forEach(function(room) { %>
+                    <div class="row">
+                        <div class="label" style="width: 50%;">
+                            <%= room.roomType %> <span style="font-size: 12px; font-weight: normal;">(x<%= room.quantity
+                                        %>)</span>
+                        </div>
+                        <div class="value" style="text-align: right;">₹<%= new
+                                Intl.NumberFormat('en-IN').format(room.subtotal) %>
+                        </div>
                     </div>
-                </div>
+                    <% }); } else { %>
+                        <div class="row">
+                            <div class="label">
+                                <%= roomType %>
+                            </div>
+                            <div class="value">
+                                <%= noOfRooms %> Room(s)
+                            </div>
+                        </div>
+                        <% } %>
+            </div>
+
+            <!-- Stay Info -->
+            <div class="section-title">Stay Duration</div>
+            <div class="grid">
                 <div class="row">
                     <div class="label">Check-in</div>
                     <div class="value">
@@ -175,15 +195,9 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="label">Number of Nights</div>
+                    <div class="label">Total Nights</div>
                     <div class="value">
                         <%= noOfNights %>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="label">Number of Rooms</div>
-                    <div class="value">
-                        <%= noOfRooms %>
                     </div>
                 </div>
             </div>

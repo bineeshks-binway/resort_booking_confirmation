@@ -28,9 +28,19 @@ const bookingSchema = new mongoose.Schema({
         required: true,
         default: 1
     },
+    // ✅ NEW: Multiple Rooms Support
+    rooms: [
+        {
+            roomType: { type: String, required: true },
+            quantity: { type: Number, required: true, default: 1 },
+            price: { type: Number, required: true }, // Unit Price
+            subtotal: { type: Number, required: true } // quantity * price
+        }
+    ],
+    // Legacy / Primary Room Summary
     roomType: {
         type: String,
-        required: true
+        required: true // We can keep this as "Primary Room" or comma separated
     },
     roomImage: {
         type: String
