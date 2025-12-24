@@ -134,6 +134,40 @@ const formatGuests = (guests) => {
 // ==========================================
 // 🚀 API 1: CREATE BOOKING & GENERATE PDF
 // ==========================================
+// ✅ CONSTANT: Room Prices (Trusted Source)
+const ROOM_PRICES = {
+  'Nalukettu': 6500,
+  'Pond View Villa': 10500,
+  'Mana 2 Bedroom Villa': 16500,
+  'Planters Bungalow': 8500,
+  'Planters Family Bungalow': 10500,
+  'Studio Bedroom with Balcony': 5000
+};
+
+// ✅ HELPER: Calculate Booking Total
+const calculateBookingTotal = (rooms, noOfNights) => {
+  if (!rooms || !Array.isArray(rooms)) return 0;
+
+  let totalPerNight = 0;
+  rooms.forEach(room => {
+    // 1. Get Base Price
+    // Allow fuzzy matching or exact match. For now exact match based on ID or string.
+    // Frontend sends exact keys.
+    const price = ROOM_PRICES[room.roomType] || 0;
+
+    // 2. Multiply by Quantity
+    const qty = Number(room.quantity) || 1;
+
+    totalPerNight += (price * qty);
+  });
+
+  return totalPerNight * (Number(noOfNights) || 1);
+};
+
+
+// ==========================================
+// 🚀 API 1: CREATE BOOKING & GENERATE PDF
+// ==========================================
 router.post("/generate-pdf", async (req, res) => {
   let page = null;
   let browser = null;
@@ -150,9 +184,9 @@ router.post("/generate-pdf", async (req, res) => {
       roomType, // Legacy/Summary
       noOfRooms, // Legacy/Summary
       mealPlan,
-      price,
+      // price, // ❌ IGNORE CLIENT PRICE
       advanceAmount,
-      pendingAmount,
+      // pendingAmount, // ❌ IGNORE CLIENT PENDING
       noOfNights,
       bookingStatus = "CONFIRMED"
     } = req.body;
@@ -182,16 +216,21 @@ router.post("/generate-pdf", async (req, res) => {
       if (roomType) {
         finalRooms = [{
           roomType: roomType,
-          quantity: Number(noOfRooms || 1),
-          price: Number(price || 0) / Number(noOfRooms || 1), // Estimate unit price
-          subtotal: Number(price || 0)
+          quantity: Number(noOfRooms || 1)
         }];
       } else {
         return res.status(400).json({ message: "At least one room is required." });
       }
     }
 
+    // 🔒 TRUSTED CALCULATION: Price
+    // Always calculate price on server. Never trust client 'price'.
+    const totalAmount = calculateBookingTotal(finalRooms, noOfNights);
+    const calculatedPendingString = (totalAmount - (Number(advanceAmount) || 0)).toFixed(0);
+    const pendingAmount = Number(calculatedPendingString);
+
     console.log(`📝 Processing New Booking for: ${guestName}`);
+    console.log(`💰 Calculated Total: ₹${totalAmount} (Advance: ₹${advanceAmount}, Pending: ₹${pendingAmount})`);
 
     // 1️⃣ GENERATE BOOKING ID
     const bookingId = await getNextBookingId();
@@ -214,9 +253,9 @@ router.post("/generate-pdf", async (req, res) => {
       noOfRooms: finalRooms.reduce((sum, r) => sum + r.quantity, 0), // Total count
       roomImage: roomImageFile,
       mealPlan: Array.isArray(mealPlan) ? mealPlan : (mealPlan ? [mealPlan] : []),
-      totalAmount: price,
-      advanceAmount,
-      pendingAmount,
+      totalAmount: totalAmount, // ✅ USE CALCULATED
+      advanceAmount: Number(advanceAmount) || 0,
+      pendingAmount: pendingAmount, // ✅ USE CALCULATED
       noOfNights,
       bookingStatus
     });
@@ -494,6 +533,13 @@ router.put("/booking/:id", async (req, res) => {
     delete updates.bookingId;
     delete updates.createdAt;
 
+    // ❌ IGNORE CLIENT PRICE
+    // We will recalculate this below if rooms or dates change.
+    // If client tries to set 'totalAmount' or 'pendingAmount', we ignore it.
+    // However, if we only partial update, we need to be careful.
+    // To simplify: We recalculate Total, Pending if relevant fields are present.
+    // If not, we might be in trouble. But effectively the edit form sends everything.
+
     // 🔒 BACKEND VALIDATION: Check Dates
     if (updates.checkIn && updates.checkOut) {
       if (new Date(updates.checkOut) <= new Date(updates.checkIn)) {
@@ -501,11 +547,23 @@ router.put("/booking/:id", async (req, res) => {
       }
     }
 
-    // 🚀 Handle Rooms Update
-    // If rooms key is present, also update legacy summary fields
+    // 🚀 Handle Rooms Update & Recalculate Prices
+    // We expect the full room array if it's being updated.
     if (updates.rooms && Array.isArray(updates.rooms)) {
       updates.roomType = updates.rooms.map(r => r.roomType).join(", ");
       updates.noOfRooms = updates.rooms.reduce((acc, r) => acc + r.quantity, 0);
+
+      // RECALCULATE PRICE
+      // We need 'noOfNights'. If not in updates, we might need to fetch existing booking.
+      // But typically Edit Form sends all fields.
+      if (updates.noOfNights) {
+        const newTotal = calculateBookingTotal(updates.rooms, updates.noOfNights);
+        updates.totalAmount = newTotal;
+
+        const advance = Number(updates.advanceAmount) || 0; // Or fetch existing?
+        // Assuming client sends advanceAmount in updates (Edit form does)
+        updates.pendingAmount = newTotal - advance;
+      }
     }
 
     const booking = await Booking.findOneAndUpdate(

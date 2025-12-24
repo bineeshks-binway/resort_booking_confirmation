@@ -433,12 +433,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                                             onChange={(e) => updateRoom(index, 'quantity', e.target.value)}
                                         />
                                     </div>
-                                    <div className="w-32">
-                                        <label className="text-xs font-medium text-gray-500 block mb-1">Price</label>
-                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-                                            ₹{room.price}
-                                        </div>
-                                    </div>
+                                    {/* Price Removed from Room Row */}
                                     <div className="pb-1">
                                         {formData.rooms.length > 1 && (
                                             <button
@@ -481,10 +476,51 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                             <Select label="Booking Status" name="bookingStatus" value={formData.bookingStatus} onChange={handleChange} options={BOOKING_STATUSES} />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <Input label="Total Amount (₹)" type="text" inputMode="numeric" name="price" value={formData.price} onChange={handleChange} />
-                            <Input label="Advance Paid (₹)" type="text" inputMode="numeric" name="advanceAmount" value={formData.advanceAmount} onChange={handleChange} />
-                            <Input label="Pending Amount (₹)" type="number" name="pendingAmount" value={formData.pendingAmount} onChange={handleChange} disabled className="bg-gray-100" />
+                        <div className="space-y-4">
+                            {/* New Summary Details */}
+                            <div className="flex border-b pb-4 border-gray-200">
+                                <div className="flex-1 text-center border-r border-gray-200 px-4">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Total Rooms</label>
+                                    <div className="text-lg font-semibold text-gray-800">
+                                        {formData.rooms.reduce((acc, r) => acc + (r.quantity || 1), 0)}
+                                    </div>
+                                </div>
+                                <div className="flex-1 text-center px-4">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Total Nights</label>
+                                    <div className="text-lg font-semibold text-gray-800">
+                                        {formData.noOfNights}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <Input
+                                    label="Grand Total (₹)"
+                                    type="text"
+                                    name="price"
+                                    value={formData.price}
+                                    onChange={() => { }} // Read-only
+                                    disabled
+                                    className="bg-gray-100 font-bold text-lg"
+                                />
+                                <Input
+                                    label="Advance Paid (₹)"
+                                    type="text"
+                                    inputMode="numeric"
+                                    name="advanceAmount"
+                                    value={formData.advanceAmount}
+                                    onChange={handleChange}
+                                />
+                                <Input
+                                    label="Pending Amount (₹)"
+                                    type="text"
+                                    name="pendingAmount"
+                                    value={String(formData.pendingAmount)}
+                                    onChange={() => { }}
+                                    disabled
+                                    className="bg-red-50 text-red-600 font-bold"
+                                />
+                            </div>
                         </div>
                     </div>
 

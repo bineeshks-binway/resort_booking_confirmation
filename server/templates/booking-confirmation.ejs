@@ -593,51 +593,6 @@
 
     <div class="page page-2">
         <!-- LOOPS ROOMS HERE -->
-        <div class="card mb-4">
-            <div class="section-title">Room Details</div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #eee; text-align: left;">
-                        <th style="padding: 8px; color: #6b7280; font-weight: 600;">ROOM TYPE</th>
-                        <th style="padding: 8px; color: #6b7280; font-weight: 600; text-align: center;">QTY</th>
-                        <th style="padding: 8px; color: #6b7280; font-weight: 600; text-align: right;">PRICE</th>
-                        <th style="padding: 8px; color: #6b7280; font-weight: 600; text-align: right;">TOTAL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (rooms && rooms.length> 0) {
-                        rooms.forEach(function(room) { %>
-                        <tr style="border-bottom: 1px solid #f3f4f6;">
-                            <td style="padding: 8px; font-weight: 500; color: #374151;">
-                                <%= room.roomType %>
-                            </td>
-                            <td style="padding: 8px; text-align: center; color: #6b7280;">
-                                <%= room.quantity %>
-                            </td>
-                            <td style="padding: 8px; text-align: right; color: #6b7280;">&#8377; <%= new
-                                    Intl.NumberFormat('en-IN').format(room.price) %>
-                            </td>
-                            <td style="padding: 8px; text-align: right; font-weight: 600; color: #1f2937;">&#8377; <%=
-                                    new Intl.NumberFormat('en-IN').format(room.subtotal) %>
-                            </td>
-                        </tr>
-                        <% }); } else { %>
-                            <!-- Legacy Fallback -->
-                            <tr style="border-bottom: 1px solid #f3f4f6;">
-                                <td style="padding: 8px; font-weight: 500; color: #374151;">
-                                    <%= roomType %>
-                                </td>
-                                <td style="padding: 8px; text-align: center; color: #6b7280;">
-                                    <%= noOfRooms %>
-                                </td>
-                                <td style="padding: 8px; text-align: right; color: #6b7280;">-</td>
-                                <td style="padding: 8px; text-align: right; font-weight: 600; color: #1f2937;">-</td>
-                            </tr>
-                            <% } %>
-                </tbody>
-            </table>
-        </div>
-
         <div class="grid-2 mb-4">
             <div class="card">
                 <div class="section-title">Meal Plan</div>
@@ -652,6 +607,7 @@
                 <div class="section-title">Payment Summary</div>
                 <!-- <div class="payment-row"><span>Room Charges (<%= noOfRooms %> Room x <%= noOfNights %> Night)</span><span class="fw-bold">Included</span></div> -->
                 <!-- Replaced summary line with Total Amount directly since we have the table above -->
+                 <div class="payment-row"><span>Total Rooms</span><span class="fw-bold"><%= noOfRooms %></span></div>
                  <div class="payment-row"><span>Total Nights</span><span class="fw-bold"><%= noOfNights %></span></div>
                 
                 <div class="payment-row total">
