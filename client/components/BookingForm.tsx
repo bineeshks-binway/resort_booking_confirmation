@@ -33,7 +33,7 @@ const BOOKING_STATUSES = [
 
 interface RoomEntry {
     roomType: string;
-    quantity: number;
+    quantity: string;
     price: number;
     subtotal: number;
 }
@@ -55,7 +55,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
 
         // 🚀 NEW: Multiple Rooms State
         rooms: [
-            { roomType: 'Nalukettu', quantity: 1, price: 6500, subtotal: 6500 }
+            { roomType: 'Nalukettu', quantity: '1', price: 6500, subtotal: 6500 }
         ] as RoomEntry[],
 
         noOfNights: '1',
@@ -83,7 +83,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                 // FALLBACK: Legacy Migration
                 loadedRooms = [{
                     roomType: initialData.roomType || 'Nalukettu',
-                    quantity: Number(initialData.noOfRooms || 1),
+                    quantity: String(initialData.noOfRooms || 1),
                     price: ROOM_PRICES[initialData.roomType] || 0, // Approx
                     subtotal: (ROOM_PRICES[initialData.roomType] || 0) * Number(initialData.noOfRooms || 1)
                 }];
@@ -130,7 +130,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
         const updatedRooms = formData.rooms.map(r => {
             const unitPrice = ROOM_PRICES[r.roomType] || 0;
             // Ensure quantity is at least 1
-            const qty = r.quantity || 1;
+            const qty = Number(r.quantity) || 0;
             const subtotal = unitPrice * qty; // Total for this room type per night (basically)
             // Wait, usually price is per night? Yes.
             // So Total = (Sum of all room subtotals) * Nights
@@ -236,7 +236,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
 
             const newRoom: RoomEntry = {
                 roomType: availableType,
-                quantity: 1,
+                quantity: '1',
                 price: ROOM_PRICES[availableType],
                 subtotal: ROOM_PRICES[availableType]
             };
@@ -274,15 +274,38 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
             }
 
             if (field === 'quantity') {
-                // Ensure valid number
-                const qty = Number(value);
-                room.quantity = qty > 0 ? qty : 1;
+                // Allow empty string or digits
+                if (value === '' || /^[0-9]+$/.test(value)) {
+                    // Prevent leading zeros unless it is just "0" (process it)
+                    // Actually, for better UX: if user types "01", make it "1".
+                    // But if they type "0", verify on blur.
+                    // Let's just allow regex match.
+                    room.quantity = value;
+                }
             }
 
-            // Recalculate subtotal
-            room.subtotal = room.price * room.quantity;
+            // Recalculate subtotal (use 0 if invalid/empty while typing)
+            room.subtotal = room.price * (Number(room.quantity) || 0);
             updatedRooms[index] = room;
 
+            return { ...prev, rooms: updatedRooms };
+        });
+    };
+
+    const handleRoomQuantityBlur = (index: number) => {
+        setFormData(prev => {
+            const updatedRooms = [...prev.rooms];
+            const room = { ...updatedRooms[index] };
+            let qty = Number(room.quantity);
+
+            // Enforce minimum 1
+            if (!room.quantity || qty < 1) {
+                qty = 1;
+            }
+
+            room.quantity = String(qty);
+            room.subtotal = room.price * qty;
+            updatedRooms[index] = room;
             return { ...prev, rooms: updatedRooms };
         });
     };
@@ -304,7 +327,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                 // We will send 'rooms' array.
                 // Legacy fields for summary:
                 roomType: formData.rooms.map(r => r.roomType).join(', '),
-                noOfRooms: formData.rooms.reduce((acc, r) => acc + r.quantity, 0),
+                noOfRooms: formData.rooms.reduce((acc, r) => acc + (Number(r.quantity) || 1), 0),
                 noOfNights: Number(formData.noOfNights || 1),
 
                 // Financials
@@ -427,10 +450,11 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                                     <div className="w-24">
                                         <Input
                                             label="Qty"
-                                            type="number"
-                                            min="1"
-                                            value={String(room.quantity)}
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={room.quantity}
                                             onChange={(e) => updateRoom(index, 'quantity', e.target.value)}
+                                            onBlur={() => handleRoomQuantityBlur(index)}
                                         />
                                     </div>
                                     {/* Price Removed from Room Row */}
@@ -482,7 +506,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                                 <div className="flex-1 text-center border-r border-gray-200 px-4">
                                     <label className="text-xs font-bold text-gray-500 uppercase">Total Rooms</label>
                                     <div className="text-lg font-semibold text-gray-800">
-                                        {formData.rooms.reduce((acc, r) => acc + (r.quantity || 1), 0)}
+                                        {formData.rooms.reduce((acc, r) => acc + (Number(r.quantity) || 0), 0)}
                                     </div>
                                 </div>
                                 <div className="flex-1 text-center px-4">

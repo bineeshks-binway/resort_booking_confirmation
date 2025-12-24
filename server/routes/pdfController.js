@@ -250,7 +250,7 @@ router.post("/generate-pdf", async (req, res) => {
       guests: finalGuests,
       rooms: finalRooms, // Save the array
       roomType: finalRooms.map(r => r.roomType).join(", "), // Summary string
-      noOfRooms: finalRooms.reduce((sum, r) => sum + r.quantity, 0), // Total count
+      noOfRooms: finalRooms.reduce((sum, r) => sum + Number(r.quantity || 0), 0), // Total count
       roomImage: roomImageFile,
       mealPlan: Array.isArray(mealPlan) ? mealPlan : (mealPlan ? [mealPlan] : []),
       totalAmount: totalAmount, // ✅ USE CALCULATED
@@ -551,7 +551,7 @@ router.put("/booking/:id", async (req, res) => {
     // We expect the full room array if it's being updated.
     if (updates.rooms && Array.isArray(updates.rooms)) {
       updates.roomType = updates.rooms.map(r => r.roomType).join(", ");
-      updates.noOfRooms = updates.rooms.reduce((acc, r) => acc + r.quantity, 0);
+      updates.noOfRooms = updates.rooms.reduce((acc, r) => acc + Number(r.quantity || 0), 0);
 
       // RECALCULATE PRICE
       // We need 'noOfNights'. If not in updates, we might need to fetch existing booking.
