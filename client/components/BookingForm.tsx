@@ -64,6 +64,7 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
         advanceAmount: '0',
         pendingAmount: 6500,
         bookingStatus: 'CONFIRMED'
+        // isManualOverride removed
     });
 
     const [loading, setLoading] = useState(false);
@@ -104,7 +105,9 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                         children: String(initialData.guests.children || 0)
                     }
                     : { adults: String(initialData.guests || 2), children: '0' },
-                noOfNights: String(initialData.noOfNights || 1)
+
+                noOfNights: String(initialData.noOfNights || 1),
+                isManualOverride: !!initialData.isManualOverride // Load saved state
             }));
         }
     }, [initialData]);
@@ -124,34 +127,24 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
 
     // ✅ Price Calculation (Triggered when rooms or nights change)
     useEffect(() => {
+        // ALWAYS Auto-calculate when rooms/nights change
+        // Admin can overwrite this manually afterwards, but this Effect ensures base calculation is correct.
         const nights = Number(formData.noOfNights) || 1;
 
         let totalRoomCost = 0;
         const updatedRooms = formData.rooms.map(r => {
             const unitPrice = ROOM_PRICES[r.roomType] || 0;
-            // Ensure quantity is at least 1
             const qty = Number(r.quantity) || 0;
-            const subtotal = unitPrice * qty; // Total for this room type per night (basically)
-            // Wait, usually price is per night? Yes.
-            // So Total = (Sum of all room subtotals) * Nights
-
+            const subtotal = unitPrice * qty;
             totalRoomCost += subtotal;
             return { ...r, price: unitPrice, subtotal };
         });
 
         const grandTotal = totalRoomCost * nights;
 
-        // We only update the TOTAL string here. 
-        // We DON'T update 'rooms' state inside this effect to avoid infinite loops if we were setting rooms.
-        // But since we are only setting 'price', it's fine.
-        // However, if we want to display the updated subtotals in the UI immediately, we should do it at the input handler level, NOT here.
-        // Doing it here might cause re-renders or loop if we set rooms.
-
-        // BETTER APPROACH: Calculate total on the fly based on current state,
-        // OR only update 'price' state here.
         setFormData(prev => ({ ...prev, price: String(grandTotal) }));
 
-    }, [formData.rooms, formData.noOfNights]); // Dep: rooms (deep check?) - actually react checks reference.
+    }, [formData.rooms, formData.noOfNights]);
 
     // ✅ Pending Amount Calculation
     useEffect(() => {
@@ -331,10 +324,12 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                 noOfNights: Number(formData.noOfNights || 1),
 
                 // Financials
+                // Financials
                 totalAmount: Number(formData.price || 0), // Usually calculated, but user can edit total?
                 price: Number(formData.price || 0), // Alias
                 advanceAmount: Number(formData.advanceAmount || 0),
                 pendingAmount: Number(formData.pendingAmount || 0)
+                // isManualOverride removed
             };
 
             if (isEditMode && bookingId) {
@@ -517,15 +512,16 @@ export const BookingForm = ({ initialData, isEditMode = false, bookingId }: Book
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
                                 <Input
                                     label="Grand Total (₹)"
                                     type="text"
+                                    inputMode="numeric"
                                     name="price"
                                     value={formData.price}
-                                    onChange={() => { }} // Read-only
-                                    disabled
-                                    className="bg-gray-100 font-bold text-lg"
+                                    onChange={handleChange}
+                                    className="bg-white font-bold text-lg border-blue-500 ring-2 ring-blue-100"
+                                    helperText="Calculated automatically. You may adjust if required."
                                 />
                                 <Input
                                     label="Advance Paid (₹)"

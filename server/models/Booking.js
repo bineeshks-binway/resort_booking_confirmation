@@ -61,6 +61,10 @@ const bookingSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    autoCalculatedTotal: {
+        type: Number,
+        default: 0
+    },
     advanceAmount: {
         type: Number,
         default: 0
@@ -73,6 +77,10 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         enum: ['CONFIRMED', 'PENDING', 'ON_HOLD'],
         default: 'CONFIRMED'
+    },
+    isManualOverride: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true // Adds createdAt and updatedAt automatically

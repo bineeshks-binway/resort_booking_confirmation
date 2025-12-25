@@ -184,11 +184,12 @@ router.post("/generate-pdf", async (req, res) => {
       roomType, // Legacy/Summary
       noOfRooms, // Legacy/Summary
       mealPlan,
-      // price, // ❌ IGNORE CLIENT PRICE
+      price, // ✅ CLIENT PRICE (Always respected as final total if provided)
       advanceAmount,
-      // pendingAmount, // ❌ IGNORE CLIENT PENDING
+      // pendingAmount, // ❌ IGNORE CLIENT PENDING (Always calc from total - advance)
       noOfNights,
       bookingStatus = "CONFIRMED"
+      // isManualOverride removed from destructure as it's no longer the primary switch
     } = req.body;
 
     // Normalize Guests
@@ -223,9 +224,25 @@ router.post("/generate-pdf", async (req, res) => {
       }
     }
 
-    // 🔒 TRUSTED CALCULATION: Price
-    // Always calculate price on server. Never trust client 'price'.
-    const totalAmount = calculateBookingTotal(finalRooms, noOfNights);
+    // 🔒 PRICE CALCULATION LOGIC
+    // 1. Calculate strictly on server (Auto Total)
+    const autoTotal = calculateBookingTotal(finalRooms, noOfNights);
+
+    // 2. Determine Final Total
+    // If client provided a price, use it (Manual Override). Otherwise fallback to Auto Total.
+    // We treat any explicit 'price' from client as the intended Grand Total.
+    let totalAmount = 0;
+    if (price !== undefined && price !== null && price !== "") {
+      totalAmount = Number(price);
+      // Safety: No negative totals
+      if (totalAmount < 0) totalAmount = 0;
+    } else {
+      totalAmount = autoTotal;
+    }
+
+    console.log(`💰 Pricing: Auto=₹${autoTotal}, Manual/Client=₹${price} => Final=₹${totalAmount}`);
+
+    // Pending is ALWAYS (Total - Advance)
     const calculatedPendingString = (totalAmount - (Number(advanceAmount) || 0)).toFixed(0);
     const pendingAmount = Number(calculatedPendingString);
 
@@ -253,11 +270,13 @@ router.post("/generate-pdf", async (req, res) => {
       noOfRooms: finalRooms.reduce((sum, r) => sum + Number(r.quantity || 0), 0), // Total count
       roomImage: roomImageFile,
       mealPlan: Array.isArray(mealPlan) ? mealPlan : (mealPlan ? [mealPlan] : []),
-      totalAmount: totalAmount, // ✅ USE CALCULATED
+      totalAmount: totalAmount, // ✅ FINAL TOTAL
+      autoCalculatedTotal: autoTotal, // ✅ AUDIT VALUE
       advanceAmount: Number(advanceAmount) || 0,
       pendingAmount: pendingAmount, // ✅ USE CALCULATED
       noOfNights,
-      bookingStatus
+      bookingStatus,
+      isManualOverride: totalAmount !== autoTotal // Derived flag for record keeping
     });
 
     await newBooking.save();
@@ -533,12 +552,12 @@ router.put("/booking/:id", async (req, res) => {
     delete updates.bookingId;
     delete updates.createdAt;
 
-    // ❌ IGNORE CLIENT PRICE
-    // We will recalculate this below if rooms or dates change.
-    // If client tries to set 'totalAmount' or 'pendingAmount', we ignore it.
-    // However, if we only partial update, we need to be careful.
-    // To simplify: We recalculate Total, Pending if relevant fields are present.
-    // If not, we might be in trouble. But effectively the edit form sends everything.
+    // ❌ IGNORE CLIENT PRICE?
+    // DEPENDS ON MANUAL OVERRIDE
+    // If we are updating, we check if isManualOverride is being set or is present
+    // Just in case, we'll re-evaluate below.
+    delete updates.totalAmount;
+    delete updates.pendingAmount;
 
     // 🔒 BACKEND VALIDATION: Check Dates
     if (updates.checkIn && updates.checkOut) {
@@ -549,21 +568,51 @@ router.put("/booking/:id", async (req, res) => {
 
     // 🚀 Handle Rooms Update & Recalculate Prices
     // We expect the full room array if it's being updated.
+
+    // Check if we are in Manual Override Mode
+    let isManualOverride = updates.isManualOverride;
+
+    // If the update payload doesn't strictly say true/false, we might need to fetch existing?
+    // Ideally, frontend sends the current state of toggle every time.
+    // Assuming 'updates' contains the boolean 'isManualOverride'.
+
     if (updates.rooms && Array.isArray(updates.rooms)) {
       updates.roomType = updates.rooms.map(r => r.roomType).join(", ");
       updates.noOfRooms = updates.rooms.reduce((acc, r) => acc + Number(r.quantity || 0), 0);
+    }
 
-      // RECALCULATE PRICE
-      // We need 'noOfNights'. If not in updates, we might need to fetch existing booking.
-      // But typically Edit Form sends all fields.
-      if (updates.noOfNights) {
-        const newTotal = calculateBookingTotal(updates.rooms, updates.noOfNights);
-        updates.totalAmount = newTotal;
+    // 🔒 RECALCULATE AUTO TOTAL (Always needed for audit/fallback)
+    // If rooms/nights updated, use them. If not, we might need to fetch existing doc to allow perfect calc?
+    // For simplicity & robustness: We assume critical updates come with full data or we accept partial updates as manual.
+    // Let's rely on what's provided. If rooms are provided, we calc Auto.
+    let autoTotal = 0;
+    if (updates.rooms && updates.noOfNights) {
+      autoTotal = calculateBookingTotal(updates.rooms, updates.noOfNights);
+      updates.autoCalculatedTotal = autoTotal;
+    }
 
-        const advance = Number(updates.advanceAmount) || 0; // Or fetch existing?
-        // Assuming client sends advanceAmount in updates (Edit form does)
-        updates.pendingAmount = newTotal - advance;
-      }
+    // 🔒 DETERMINE FINAL TOTAL
+    // Check if client sent a specific price
+    if (req.body.price !== undefined || req.body.totalAmount !== undefined) {
+      let newPrice = Number(req.body.price !== undefined ? req.body.price : req.body.totalAmount);
+      if (newPrice < 0) newPrice = 0;
+      updates.totalAmount = newPrice;
+    } else if (autoTotal > 0 && !updates.totalAmount) {
+      // If no manual price sent but we recalculated auto, and current total shouldn't be stale...
+      // Actually, if user only updates "Notes", we shouldn't reset price to Auto if it was manual.
+      // SO: Only reset to Auto if we don't have a manual price AND we are effectively "re-booking" (changing rooms).
+      // Given requirements: "Auto-calculated initially", "Always manual editable".
+
+      // If rooms changed, we usually reset to Auto unless manual overrides it.
+      // Let's stick to: If explicit price sent, use it. Else if rooms changed, use Auto.
+      updates.totalAmount = autoTotal;
+    }
+
+    // Recalculate Pending
+    // Recalculate Pending
+    if (updates.totalAmount !== undefined && updates.advanceAmount !== undefined) {
+      const advance = Number(updates.advanceAmount);
+      updates.pendingAmount = updates.totalAmount - advance;
     }
 
     const booking = await Booking.findOneAndUpdate(
